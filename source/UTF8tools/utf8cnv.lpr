@@ -3,7 +3,7 @@
    BSD-3-Clause license
 }
 
-program utf2html;
+program utf8cnv;
 
 {$mode objfpc}{$H+}
 
