@@ -15,9 +15,9 @@ uses
 
 type
 
-  { TUTF8toHTML }
+  { TUTF8Convert }
 
-  TUTF8toHTML = class(TCustomApplication)
+  TUTF8Convert = class(TCustomApplication)
   protected
     procedure DoRun; override;
   public
@@ -26,40 +26,40 @@ type
     procedure WriteHelp; virtual;
   end;
 
-{ TUTF8toHTML }
+{ TUTF8Convert }
 
-procedure TUTF8toHTML.DoRun;
+procedure TUTF8Convert.DoRun;
 begin
   WriteLn('Codepages: ', CodepageList);
   // stop program loop
   Terminate;
 end;
 
-constructor TUTF8toHTML.Create(TheOwner: TComponent);
+constructor TUTF8Convert.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
   StopOnException:=True;
 end;
 
-destructor TUTF8toHTML.Destroy;
+destructor TUTF8Convert.Destroy;
 begin
   inherited Destroy;
 end;
 
-procedure TUTF8toHTML.WriteHelp;
+procedure TUTF8Convert.WriteHelp;
 begin
   { add your help code here }
   writeln('Usage: ', ExeName, ' ', CommandSwitch, 'h');
 end;
 
 var
-  Application: TUTF8toHTML;
+  Application: TUTF8Convert;
 
 {$R *.res}
 
 begin
-  Application:=TUTF8toHTML.Create(nil);
-  Application.Title:='UTF8 to HTML Converter';
+  Application:=TUTF8Convert.Create(nil);
+  Application.Title:='UTF8 Converter';
   Application.Run;
   Application.Free;
 end.
