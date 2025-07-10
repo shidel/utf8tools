@@ -39,10 +39,10 @@ getval () {
 }
 
 print_consts() {
-	echo "// Application Version Information File"
-	echo
-	echo "// This file is created automatically by the version.sh script whenever"
-	echo "// the project is built by Lazarus. Manual changes will be lost."
+	echo "{ Application Version Information File                                 }"
+	echo "{                                                                      }"
+	echo "{ This file is created automatically by the version.sh script whenever }"
+	echo "{ the project is built by Lazarus. Manual changes will be lost.        }"
 	echo
 
 	echo "const"

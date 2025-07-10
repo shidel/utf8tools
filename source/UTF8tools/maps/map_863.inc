@@ -1,11 +1,20 @@
-// DOS Codepage to UTF-8 conversion map
-// Created by CpME's map creator v2025-07-09
-// https://github.com/shidel/CpME/
+{ DOS Codepage to UTF-8 conversion map }
+
+{ Created by CpME's map creator v2025-07-09 }
+{ https://github.com/shidel/CpME/           }
+
+
+{$IFNDEF CodepageRemapEntries}
+{$DEFINE CodepageRemapEntries}
+type
+  TCodepageRemapEntry = LongInt;
+  TCodepageRemapEntries = array [0..255] of TCodepageRemapEntry;
+{$ENDIF}
 
 
 {$DEFINE CP863toUTF8Remap}
 const
-  CP863toUTF8RemapList : TArrayOfLongInts = (
+  CP863toUTF8RemapList : TCodepageRemapEntries = (
     {0} 	9216,
     {1} 	9786,
     {2} 	9787,

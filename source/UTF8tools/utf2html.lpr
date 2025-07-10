@@ -11,14 +11,13 @@ uses
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}
-  Classes, SysUtils, CustApp,
-  Common;
+  Classes, SysUtils, CustApp, Common, Unicode, Codepage, Remapper;
 
 type
 
-  { TUTF8Tool }
+  { TUTF8toHTML }
 
-  TUTF8Tool = class(TCustomApplication)
+  TUTF8toHTML = class(TCustomApplication)
   protected
     procedure DoRun; override;
   public
@@ -27,58 +26,39 @@ type
     procedure WriteHelp; virtual;
   end;
 
-{ TUTF8Tool }
+{ TUTF8toHTML }
 
-procedure TUTF8Tool.DoRun;
-var
-  ErrorMsg: String;
+procedure TUTF8toHTML.DoRun;
 begin
-  // quick check parameters
-  ErrorMsg:=CheckOptions('h', 'help');
-  if ErrorMsg<>'' then begin
-    ShowException(Exception.Create(ErrorMsg));
-    Terminate;
-    Exit;
-  end;
-
-  // parse parameters
-  if HasOption('h', 'help') then begin
-    WriteHelp;
-    Terminate;
-    Exit;
-  end;
-
-
-
   // stop program loop
   Terminate;
 end;
 
-constructor TUTF8Tool.Create(TheOwner: TComponent);
+constructor TUTF8toHTML.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
   StopOnException:=True;
 end;
 
-destructor TUTF8Tool.Destroy;
+destructor TUTF8toHTML.Destroy;
 begin
   inherited Destroy;
 end;
 
-procedure TUTF8Tool.WriteHelp;
+procedure TUTF8toHTML.WriteHelp;
 begin
   { add your help code here }
-  writeln('Usage: ', ExeName, ' -h');
+  writeln('Usage: ', ExeName, ' ', CommandSwitch, 'h');
 end;
 
 var
-  Application: TUTF8Tool;
+  Application: TUTF8toHTML;
 
 {$R *.res}
 
 begin
-  Application:=TUTF8Tool.Create(nil);
-  Application.Title:='UTF8 Tool';
+  Application:=TUTF8toHTML.Create(nil);
+  Application.Title:='UTF8 to HTML Converter';
   Application.Run;
   Application.Free;
 end.
