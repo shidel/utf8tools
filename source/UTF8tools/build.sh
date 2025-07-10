@@ -57,6 +57,7 @@ function build_default () {
 function build_app () {
 
 	local app="${1}"
+	[[ ! -e ${app}.lpr ]] && return 0
 
 	cp ${app}.lpi ${app}.ver
 	build_default ${app}
@@ -78,7 +79,10 @@ function lines () {
 	echo
 }
 
-build_app CpME cpme
+build_app utf2html
+build_app html2utf
+build_app utf2cp
+build_app cp2utf
 
 lines
 
