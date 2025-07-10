@@ -13,8 +13,6 @@ unit Remapper;
 
 interface
 
-
-
 procedure Initialize;
 procedure Finalize;
 
@@ -25,20 +23,25 @@ uses Unicode;
 {$I maps\map_html.inc}
 {$I maps\map_utf8.inc}
 
+{ Unit initialization routines }
 var
   OldExitProc : pointer;
 
 procedure Initialize;
 begin
+  if Assigned(OldExitProc) then exit;
   OldExitProc := ExitProc;
   ExitProc := @Finalize;
 end;
 
 procedure Finalize;
 begin
+  if not Assigned(OldExitProc) then exit;
   ExitProc := OldExitProc;
+  OldExitProc := nil;
 end;
 
 begin
-   Initialize;
+  OldExitProc := nil;
+  Initialize;
 end.

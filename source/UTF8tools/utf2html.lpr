@@ -30,6 +30,7 @@ type
 
 procedure TUTF8toHTML.DoRun;
 begin
+  WriteLn('Codepages: ', CodepageList);
   // stop program loop
   Terminate;
 end;

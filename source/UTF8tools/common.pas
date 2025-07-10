@@ -65,20 +65,6 @@ procedure Finalize;
 
 implementation
 
-var
-  OldExitProc : pointer;
-
-procedure Initialize;
-begin
-  OldExitProc := ExitProc;
-  ExitProc := @Finalize;
-end;
-
-procedure Finalize;
-begin
-  ExitProc := OldExitProc;
-end;
-
 { TMapNode }
 
 constructor TMapNode.Create;
@@ -160,6 +146,26 @@ begin
   inherited Destroy;
 end;
 
+{ Unit initialization routines }
+
+var
+  OldExitProc : pointer;
+
+procedure Initialize;
 begin
-   Initialize;
+  if Assigned(OldExitProc) then exit;
+  OldExitProc := ExitProc;
+  ExitProc := @Finalize;
+end;
+
+procedure Finalize;
+begin
+  if not Assigned(OldExitProc) then exit;
+  ExitProc := OldExitProc;
+  OldExitProc := nil;
+end;
+
+begin
+  OldExitProc := nil;
+  Initialize;
 end.
