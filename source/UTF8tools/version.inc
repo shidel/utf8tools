@@ -14,9 +14,9 @@ const
 
   { Source & Subversion Last Changed Commit }
   SOURCE_VERSION='0.0.0';
-  SOURCE_REVISION='4';
+  SOURCE_REVISION='5';
   SOURCE_URL='http://github.com/shidel/utf8tools';
-  SOURCE_COMMIT='4567ed263188a0c02e8486d94bac4c1940dd8256';
+  SOURCE_COMMIT='61ad263988512977e6841c70d2fcba98273c9aea';
 
   { Version Build Atributes } 
   BUILD_DEBUG=False;
@@ -24,7 +24,7 @@ const
   BUILD_PATCHED=False;
   BUILD_PRIVATE=False;
   BUILD_SPECIAL=False;
-  BUILD_DATE='2025-07-10 01:23:01';
+  BUILD_DATE='2025-07-10 01:32:22';
 
   { General Application Information }
   APP_IDENTIFIER='';

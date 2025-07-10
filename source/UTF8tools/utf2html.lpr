@@ -1,3 +1,8 @@
+{
+   Copyright (c) 2025 Jerome Shidel
+   BSD-3-Clause license
+}
+
 program utf2html;
 
 {$mode objfpc}{$H+}
@@ -6,8 +11,8 @@ uses
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}
-  Classes, SysUtils, CustApp
-  { you can add units after this };
+  Classes, SysUtils, CustApp,
+  Common;
 
 type
 
