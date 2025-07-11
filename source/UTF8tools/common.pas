@@ -19,11 +19,42 @@ uses
 {$I version.inc}
 
 const
-  CommandSwitch = '-';
+  {$if defined(TP70)}
+  CommandSwitch : String = '/';
+  {$elseif defined(windows)}
+  CommandSwitch : String = '/';
+  {$elseif defined(darwin)}
+  CommandSwitch : String = '-';
+  {$elseif defined(linux)}
+  CommandSwitch : String = '-';
+  {$else}
+    {$ERROR unknown platform}
+  {$endif}
+
+  CR          = #$0d;
+  LF          = #$0a;
+  SPACE       = #$20;
+  TAB         = #$09;
+  AMPERSAND   = #$26;
+  LESSTHAN    = #$3c;
+  GREATERTHAN = #$3e;
+  COLON       = #$3a;
+  SEMICOLON   = #$3b;
+
+  MaxInteger  = MaxLongInt;
+
+
+
+  OutputPath    : String = '';
+
 
 type
 
   TMapString = AnsiString;
+  TAsciiString = AnsiString;
+  TUTF8String = AnsiString;
+
+  TConvertOpts = set of ( cvCR, cvLF, cvTAB, cvCtrlChars );
 
   { TMapNode }
 
@@ -61,6 +92,12 @@ type
   end;
 
 function PopDelim(var AStr : TMapString; ADelim: TMapString = #32): TMapString;
+procedure Explode(AStr : String; var AStrs : TStringList; ADelim : String = ','); overload;
+function Explode(AStr : String; ADelim : String = ',' ):TStringArray; overload;
+
+function SaveFile(AFileName: String; const AValue : AnsiString) : boolean; overload;
+function LoadFile(AFileName: String; out AValue : AnsiString) : boolean; overload;
+
 
 procedure Initialize;
 procedure Finalize;
@@ -159,6 +196,79 @@ begin
   Result := Copy(AStr, 1, P - 1);
   Delete(AStr, 1, P - 1 + Length(ADelim));
 end;
+
+procedure Explode(AStr : String; var AStrs : TStringList; ADelim : String); overload;
+var
+  S : String;
+begin
+  While Length(AStr) > 0 do begin
+    S := PopDelim(AStr, ADelim);
+    AStrs.Add(S);
+  end;
+end;
+
+function Explode(AStr : String; ADelim : String):TStringArray; overload;
+var
+  I : Integer;
+begin
+  I := 0;
+  Explode:=[];
+  While Length(AStr) > 0 do begin
+    if I = Length(Explode) then
+      SetLength(Explode, Length(Explode) + 50);
+    Explode[I] := PopDelim(AStr, ADelim);
+    Inc(I);
+  end;
+  SetLength(Explode, I);
+end;
+
+{$PUSH}
+{$I-}
+
+function SaveFile(AFileName: String; const AValue : AnsiString) : boolean; overload;
+var
+   F : File;
+   R, E : integer;
+begin
+  System.Assign(F, AFileName);
+  Rewrite(F,1);
+  R := IOResult;
+  if (R = 0) then begin
+    if (Length(AValue) > 0) then
+      BlockWrite(F, AValue[1], Length(AValue));
+    R := IOResult;
+    Close(F);
+    E := IOResult;
+    if R = 0 then R := E;
+  end;
+  Result := R = 0;
+end;
+
+function LoadFile(AFileName: String; out AValue : AnsiString) : boolean; overload;
+var
+   F : File;
+   R, E : integer;
+begin
+  AValue:='';
+  System.Assign(F, AFileName);
+  Reset(F, 1);
+  R := IOResult;
+  if R = 0 then begin
+    if FileSize(F) >= MaxInteger then
+      R := 8
+    else begin
+        SetLength(AValue, FileSize(F));
+        BlockRead(F, AValue[1], Length(AValue));
+    end;
+    Close(F);
+    E := IOResult;
+    if R = 0 then R := E;
+  end;
+  Result := R = 0;
+end;
+
+{$POP}
+
 
 { Unit initialization routines }
 

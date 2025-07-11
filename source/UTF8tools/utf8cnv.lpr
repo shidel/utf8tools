@@ -29,8 +29,31 @@ type
 { TUTF8Convert }
 
 procedure TUTF8Convert.DoRun;
+var
+  I : integer;
+  S : TAsciiString;
+  U : TUTF8String;
 begin
-  WriteHelp;
+  if ParamCOunt = 0 then WriteHelp;
+  for I := 1 to ParamCount do begin
+    if not LoadFile(ParamStr(I), S) then begin
+      WriteLn(ParamStr(I), ' load failed.');
+      Continue;
+    end;
+    if not CodepageToUTF8(437, S, U) then begin
+      WriteLn(ParamStr(I), ' conversion failed.');
+      Continue;
+    end;
+    if S = U then begin
+      WriteLn(ParamStr(I), ' unchanged, conversion not required.');
+      Continue;
+    end;
+    if not SaveFile(ParamStr(I) + '.utf8', U) then begin
+      WriteLn(ParamStr(I), '.utf8 save failed.');
+      Continue;
+    end;
+    WriteLn('save ', ParamStr(I), '.utf8');
+  end;
   // stop program loop
   Terminate;
 end;
@@ -50,7 +73,7 @@ procedure TUTF8Convert.WriteHelp;
 begin
   WriteLn('Usage: ', 'utf8cnv', ' ', CommandSwitch, 'h');
   WriteLn;
-  WriteLn('Available code pages: ', CodepageList);
+  WriteLn('Available code pages: ', Codepages);
 end;
 
 var

@@ -19,8 +19,9 @@ const
   Invalid7F : boolean = true;
 
 type
-  { String containing one or more bytes for UTF-8 encoded characters }
-  TUTF8CodePoint = TMapString;
+  { String containing one or more bytes for UTF-8 encoded characters.
+    Characters such as "Ç, É, Æ, £ and many more" }
+  TUTF8CodePoint = String;
   { Numeric value of a decoded UTF-8 character }
   TUTF8Value = Int32;
 
@@ -52,7 +53,6 @@ function ValueToCodePoint(Value : TUTF8Value): TUTF8CodePoint; overload;
 
 function IntsToCodePoint(Ints : TMapString; out C : TUTF8CodePoint) : boolean;
 function CodePointToInts(C : TUTF8CodePoint; out Ints : TMapString) : boolean;
-
 
 procedure Initialize;
 procedure Finalize;

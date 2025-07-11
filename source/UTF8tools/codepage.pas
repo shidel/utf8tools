@@ -15,8 +15,10 @@ interface
 
 uses Classes, SysUtils, Common, Unicode;
 
-function CodepageList : String;
+function Codepages : String; overload;
+procedure Codepages(out List : TStringArray); overload;
 
+function CodePageToUTF8(Codepage : integer; const S : TAsciiString; out U : TUTF8String; Options : TConvertOpts = []) : boolean; overload;
 
 
 procedure Initialize;
@@ -43,16 +45,55 @@ type
 var
   FCodePages : array of TCodepage;
 
-function CodepageList: String;
+function Codepages: String; overload;
 var
   I : Integer;
 begin
-  CodepageList:='';
+  Codepages:='';
   for I := Low(FCodepages) to High(FCodepages) do begin
     if I > Low(FCodepages) then
-      CodepageList:=CodepageList+', ';
-    CodepageList:=CodepageList+IntToStr(FCodepages[I].CodePage);
+      Codepages:=Codepages+', ';
+    Codepages:=Codepages+IntToStr(FCodepages[I].CodePage);
   end;
+end;
+
+procedure Codepages(out List: TStringArray); overload;
+begin
+  List:=Explode(Codepages,', ');
+end;
+
+function CodePageToUTF8(Codepage : integer; const S : TAsciiString; out U : TUTF8String; Options : TConvertOpts = []) : boolean;
+var
+  P, I, C, V: Integer;
+  X : TUTF8CodePoint;
+begin
+  CodePageToUTF8:=False;
+  U:='';
+  P := -1;
+  for I := Low(FCodepages) to High(FCodepages) do
+    if Codepage=FCodepages[I].CodePage then begin
+      P := I;
+      Break;
+    end;
+  if P = -1 then Exit;
+  for I := 1 to Length(S) do begin
+    V := Byte(S[I]);
+    C := FCodepages[P].Mapping[V];
+    case Char(V) of
+      CR   : if not (cvCR  in Options) then C:=-1;
+      LF   : if not (cvLF  in Options) then C:=-1;
+      TAB  : if not (cvTAB in Options) then C:=-1;
+    else
+      if (V < 32) and (not (cvCtrlChars in Options)) then C:=-1;
+    end;
+    if C = -1 then
+      U:=U+Char(V)
+    else begin
+      if not ValueToCodePoint(C,X) then Exit;
+      U:=U+X;
+    end;
+  end;
+  CodePageToUTF8:=True;
 end;
 
 { Unit initialization routines }
