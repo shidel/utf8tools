@@ -15,9 +15,6 @@ interface
 
 uses Classes, SysUtils, Common, Unicode;
 
-procedure Initialize;
-procedure Finalize;
-
 implementation
 
 {$I maps\map_html.inc}
@@ -26,10 +23,6 @@ implementation
 var
   FHTML,
   FUTF8 : TMapTree;
-
-{ Unit initialization routines }
-var
-  OldExitProc : pointer;
 
 function Encode(var H : TMapString; U : TMapString) : TUTF8CodePoint;
 begin
@@ -70,11 +63,8 @@ begin
   end;
 end;
 
-procedure Initialize;
+Procedure Initialize;
 begin
-  if Assigned(OldExitProc) then exit;
-  OldExitProc := ExitProc;
-  ExitProc := @Finalize;
   FHTML:=TMapTree.Create;
   FUTF8:=TMapTree.Create;
   MapHTML;
@@ -83,14 +73,12 @@ end;
 
 procedure Finalize;
 begin
-  if not Assigned(OldExitProc) then exit;
-  ExitProc := OldExitProc;
-  OldExitProc := nil;
   FreeAndNil(FUTF8);
   FreeAndNil(FHTML);
 end;
 
-begin
-  OldExitProc := nil;
+initialization
   Initialize;
+finalization
+  Finalize;
 end.

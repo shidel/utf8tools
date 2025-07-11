@@ -34,9 +34,6 @@ function CodePageToUTF8(Codepage : integer; const S : TAsciiString;
 function UTF8ToCodepage(Codepage : integer; const U : TUTF8String;
   out R : TResultsCP) : boolean;
 
-procedure Initialize;
-procedure Finalize;
-
 implementation
 
 {$I maps\map_437.inc}
@@ -145,7 +142,10 @@ begin
       N := Nil;
     end else begin
       if L > 1 then Inc(R.Unicode);
-      N:=FCodePages[P].UTF8.Search(W);
+      if L = 1 then { Only 1 char then is not a Unicode character }
+        N := Nil
+      else
+        N:=FCodePages[P].UTF8.Search(W, True); { no combo UTF-8 chars }
       if Assigned(N) then
         Inc(R.Match)
       else
@@ -163,8 +163,6 @@ end;
 
 
 { Unit initialization routines }
-var
-  OldExitProc : pointer;
 
 procedure AddCodepage(Codepage : integer; const Mapping : TCodepageRemapEntries);
 var
@@ -193,10 +191,7 @@ end;
 
 procedure Initialize;
 begin
-  if Assigned(OldExitProc) then exit;
   FCodepages:=[];
-  OldExitProc := ExitProc;
-  ExitProc := @Finalize;
   AddCodePage(437, CP437toUTF8RemapList);
   AddCodePage(850, CP850toUTF8RemapList);
   AddCodePage(858, CP858toUTF8RemapList);
@@ -209,15 +204,13 @@ procedure Finalize;
 var
   I : integer;
 begin
-  if not Assigned(OldExitProc) then exit;
-  ExitProc := OldExitProc;
-  OldExitProc := nil;
   for I := High(FCodePages) downto Low(FCodepages) do
     FreeAndNil(FCodepages[I].UTF8);
   SetLength(FCodepages, 0);
 end;
 
-begin
-   OldExitProc := nil;
-   Initialize;
+initialization
+  Initialize;
+finalization
+  Finalize;
 end.

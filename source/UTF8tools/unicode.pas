@@ -54,9 +54,6 @@ function ValueToCodePoint(Value : TUTF8Value): TUTF8CodePoint; overload;
 function IntsToCodePoint(Ints : TMapString; out C : TUTF8CodePoint) : boolean;
 function CodePointToInts(C : TUTF8CodePoint; out Ints : TMapString) : boolean;
 
-procedure Initialize;
-procedure Finalize;
-
 implementation
 
 const
@@ -227,25 +224,4 @@ begin
   CodePointToInts := True;
 end;
 
-{ Unit initialization routines }
-var
-  OldExitProc : pointer;
-
-procedure Initialize;
-begin
-  if Assigned(OldExitProc) then Exit;
-  OldExitProc := ExitProc;
-  ExitProc := @Finalize;
-end;
-
-procedure Finalize;
-begin
-  if not Assigned(OldExitProc) then Exit;
-  ExitProc := OldExitProc;
-  OldExitProc := nil;
-end;
-
-begin
-  OldExitProc := nil;
-  Initialize;
 end.

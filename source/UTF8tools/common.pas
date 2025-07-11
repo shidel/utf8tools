@@ -84,7 +84,7 @@ type
     property RootNode : TMapNode read FRootNode;
     function Add(AValue, AData : TMapString) : TMapNode;
     function Find(AValue : TMapString) : TMapNode;
-    function Search(AValue : TMapString) : TMapNode;
+    function Search(AValue : TMapString; FirstMatch : boolean = false) : TMapNode;
     procedure Clear;
     constructor Create;
     destructor Destroy; override;
@@ -97,10 +97,6 @@ function Explode(AStr : String; ADelim : String = ',' ):TStringArray; overload;
 
 function SaveFile(AFileName: String; const AValue : AnsiString) : boolean; overload;
 function LoadFile(AFileName: String; out AValue : AnsiString) : boolean; overload;
-
-
-procedure Initialize;
-procedure Finalize;
 
 implementation
 
@@ -166,18 +162,24 @@ begin
   end;
 end;
 
-function TMapTree.Search(AValue: TMapString): TMapNode;
+function TMapTree.Search(AValue: TMapString; FirstMatch : boolean = false): TMapNode;
 var
   C : TMapString;
+  F : TMapNode;
 begin
-  Search := FRootNode;
-  While Assigned(Search) do begin
-    C := Copy(AValue, 1, Length(Search.FValue));
-    if C = Search.FValue then Break;
-    if C < Search.FValue then
-      Search := Search.FLesser
+  Search := nil;
+  F := FRootNode;
+  While Assigned(F) do begin
+    C := Copy(AValue, 1, Length(F.FValue));
+    if C = F.FValue then begin
+      Search:=F;
+      if FirstMatch or (Not Assigned(F.FGreater)) then
+        Break;
+    end;
+    if C < F.FValue then
+      F := F.FLesser
     else
-      Search := Search.FGreater;
+      F := F.FGreater;
   end;
 end;
 
@@ -284,27 +286,4 @@ end;
 
 {$POP}
 
-
-{ Unit initialization routines }
-
-var
-  OldExitProc : pointer;
-
-procedure Initialize;
-begin
-  if Assigned(OldExitProc) then exit;
-  OldExitProc := ExitProc;
-  ExitProc := @Finalize;
-end;
-
-procedure Finalize;
-begin
-  if not Assigned(OldExitProc) then exit;
-  ExitProc := OldExitProc;
-  OldExitProc := nil;
-end;
-
-begin
-  OldExitProc := nil;
-  Initialize;
 end.
