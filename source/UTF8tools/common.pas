@@ -44,7 +44,6 @@ const
   MaxInteger  = MaxLongInt;
 
 
-
   OutputPath    : String = '';
 
 
@@ -85,6 +84,7 @@ type
     property RootNode : TMapNode read FRootNode;
     function Add(AValue, AData : TMapString) : TMapNode;
     function Find(AValue : TMapString) : TMapNode;
+    function Search(AValue : TMapString) : TMapNode;
     procedure Clear;
     constructor Create;
     destructor Destroy; override;
@@ -126,20 +126,20 @@ end;
 
 function TMapTree.Add(AValue, AData: TMapString): TMapNode;
 var
-  Search, Last : TMapNode;
+  This, Last : TMapNode;
   L : integer;
 begin
   Add:=Nil;
   Last:=Nil;
-  Search:=FRootNode;
+  This:=FRootNode;
   L:=0;
-  While Assigned(Search) do begin
-    if Search.FValue = AValue then Exit; // Already in List
-    Last:=Search;
-    if AValue < Search.FValue then
-      Search:=Search.FLesser
+  While Assigned(This) do begin
+    if This.FValue = AValue then Exit; // Already in List
+    Last:=This;
+    if AValue < This.FValue then
+      This:=This.FLesser
     else
-      Search:=Search.FGreater;
+      This:=This.FGreater;
     Inc(L);
   end;
   if L > FLevels then FLevels:=L;
@@ -163,6 +163,21 @@ begin
       Find := Find.FLesser
     else
       Find := Find.FGreater;
+  end;
+end;
+
+function TMapTree.Search(AValue: TMapString): TMapNode;
+var
+  C : TMapString;
+begin
+  Search := FRootNode;
+  While Assigned(Search) do begin
+    C := Copy(AValue, 1, Length(Search.FValue));
+    if C = Search.FValue then Break;
+    if C < Search.FValue then
+      Search := Search.FLesser
+    else
+      Search := Search.FGreater;
   end;
 end;
 

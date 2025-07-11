@@ -15,11 +15,24 @@ interface
 
 uses Classes, SysUtils, Common, Unicode;
 
+type
+  TResultsCP = record
+    Ascii : TAsciiString; { converted string }
+    Count : integer;      { total processed characters }
+    Unicode : integer;    { total of chars using unicode }
+    Match : integer;      { exists in codepage }
+    Other : integer;      { non-utf8 matched characters, like CRLF chars }
+    Errors : integer;     { illegal or damaged characters }
+  end;
+
 function Codepages : String; overload;
 procedure Codepages(out List : TStringArray); overload;
 
-function CodePageToUTF8(Codepage : integer; const S : TAsciiString; out U : TUTF8String; Options : TConvertOpts = []) : boolean; overload;
+function CodePageToUTF8(Codepage : integer; const S : TAsciiString;
+  out U : TUTF8String; Options : TConvertOpts = []) : boolean; overload;
 
+function UTF8ToCodepage(Codepage : integer; const U : TUTF8String;
+  out R : TResultsCP) : boolean;
 
 procedure Initialize;
 procedure Finalize;
@@ -62,6 +75,18 @@ begin
   List:=Explode(Codepages,', ');
 end;
 
+function CodePageIndex(Codepage : Integer) :integer;
+var
+  I : integer;
+begin
+  CodePageIndex:=-1;
+  for I := Low(FCodepages) to High(FCodepages) do
+    if Codepage=FCodepages[I].CodePage then begin
+      CodePageIndex := I;
+      Break;
+    end;
+end;
+
 function CodePageToUTF8(Codepage : integer; const S : TAsciiString; out U : TUTF8String; Options : TConvertOpts = []) : boolean;
 var
   P, I, C, V: Integer;
@@ -69,12 +94,7 @@ var
 begin
   CodePageToUTF8:=False;
   U:='';
-  P := -1;
-  for I := Low(FCodepages) to High(FCodepages) do
-    if Codepage=FCodepages[I].CodePage then begin
-      P := I;
-      Break;
-    end;
+  P := CodePageIndex(CodePage);
   if P = -1 then Exit;
   for I := 1 to Length(S) do begin
     V := Byte(S[I]);
@@ -95,6 +115,52 @@ begin
   end;
   CodePageToUTF8:=True;
 end;
+
+function UTF8ToCodepage(Codepage: integer; const U: TUTF8String; out
+  R: TResultsCP): boolean;
+var
+  P : Integer;
+  W : TMapString;
+  I : integer;
+  L : integer;
+  N : TMapNode;
+begin
+  UTF8ToCodepage:=False;
+  R.Ascii:='';
+  R.Count:=0;
+  R.Unicode:=0;
+  R.Match:=0;
+  R.Other:=0;
+  R.Errors:=0;
+  P:=CodePageIndex(CodePage);
+  if P = -1 then Exit;
+  I := 1;
+  while I <= Length(U) do begin
+    W:=Copy(U,I, 4);
+    L := CodePointLength(W);
+    Inc(R.Count);
+    if L < 1 then begin
+      L := 1;
+      Inc(R.Errors);
+      N := Nil;
+    end else begin
+      if L > 1 then Inc(R.Unicode);
+      N:=FCodePages[P].UTF8.Search(W);
+      if Assigned(N) then
+        Inc(R.Match)
+      else
+        Inc(R.Other);
+    end;
+    if Assigned(N) then begin
+      R.Ascii:=R.Ascii + N.Data;
+    end else begin
+      R.Ascii := R.Ascii + Copy(U,I,L);
+    end;
+    Inc(I, L);
+  end;
+  UTF8ToCodepage:=True;
+end;
+
 
 { Unit initialization routines }
 var

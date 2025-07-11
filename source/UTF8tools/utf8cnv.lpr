@@ -31,28 +31,33 @@ type
 procedure TUTF8Convert.DoRun;
 var
   I : integer;
-  S : TAsciiString;
   U : TUTF8String;
+  R : TResultsCP;
 begin
-  if ParamCOunt = 0 then WriteHelp;
+  if ParamCount = 0 then WriteHelp;
   for I := 1 to ParamCount do begin
-    if not LoadFile(ParamStr(I), S) then begin
+    if not LoadFile(ParamStr(I), U) then begin
       WriteLn(ParamStr(I), ' load failed.');
       Continue;
     end;
-    if not CodepageToUTF8(437, S, U) then begin
+    if not UTF8ToCodePage(437, U, R) then begin
       WriteLn(ParamStr(I), ' conversion failed.');
       Continue;
     end;
-    if S = U then begin
+    WriteLn('Characters: ', R.Count);
+    WriteLn('Unicode: ', R.Unicode);
+    WriteLn('Matched: ', R.Match);
+    WriteLn('Others: ', R.Other);
+    WriteLn('Errors: ', R.Errors);
+    if R.Ascii = U then begin
       WriteLn(ParamStr(I), ' unchanged, conversion not required.');
       Continue;
     end;
-    if not SaveFile(ParamStr(I) + '.utf8', U) then begin
-      WriteLn(ParamStr(I), '.utf8 save failed.');
+    if not SaveFile(ParamStr(I) + '.437', R.Ascii) then begin
+      WriteLn(ParamStr(I), '.437 save failed.');
       Continue;
     end;
-    WriteLn('save ', ParamStr(I), '.utf8');
+    WriteLn('save ', ParamStr(I), '.437');
   end;
   // stop program loop
   Terminate;
