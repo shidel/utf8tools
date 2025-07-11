@@ -60,6 +60,8 @@ type
   published
   end;
 
+function PopDelim(var AStr : TMapString; ADelim: TMapString = #32): TMapString;
+
 procedure Initialize;
 procedure Finalize;
 
@@ -144,6 +146,18 @@ destructor TMapTree.Destroy;
 begin
   Clear;
   inherited Destroy;
+end;
+
+{ Unit functions and procedures }
+
+function PopDelim(var AStr: TMapString; ADelim: TMapString): TMapString;
+var
+  P : integer;
+begin
+  P := Pos(ADelim, AStr);
+  if P <= 0 then P := Length(AStr) + 1;
+  Result := Copy(AStr, 1, P - 1);
+  Delete(AStr, 1, P - 1 + Length(ADelim));
 end;
 
 { Unit initialization routines }

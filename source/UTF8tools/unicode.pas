@@ -13,7 +13,7 @@ unit Unicode;
 
 interface
 
-uses Common;
+uses Classes, SysUtils, Common;
 
 const
   Invalid7F : boolean = true;
@@ -49,6 +49,10 @@ function ValueToCodePoint(Value : TUTF8Value; out C : TUTF8CodePoint) : boolean;
   a UTF-8 character. If out of the valid range of characters, will
   return a null string.}
 function ValueToCodePoint(Value : TUTF8Value): TUTF8CodePoint; overload;
+
+function IntsToCodePoint(Ints : TMapString; out C : TUTF8CodePoint) : boolean;
+function CodePointToInts(C : TUTF8CodePoint; out Ints : TMapString) : boolean;
+
 
 procedure Initialize;
 procedure Finalize;
@@ -186,20 +190,57 @@ begin
   ValueToCodePoint(Value, ValueToCodePoint);
 end;
 
+function IntsToCodePoint(Ints: TMapString; out C: TUTF8CodePoint): boolean;
+var
+  T : TUTF8CodePoint;
+  V : TUTF8Value;
+  N : TMapString;
+  E : Integer;
+begin
+  IntsToCodePoint:=False;
+  C:='';
+  while Ints <> '' do begin
+    N := PopDelim(Ints, ',');
+    Val(N, V, E);
+    if E <> 0 then Exit;
+    if not ValueToCodePoint(V, T) then Exit;
+    C:=C+T;
+  end;
+  IntsToCodePoint:=True;
+end;
+
+function CodePointToInts(C: TUTF8CodePoint; out Ints: TMapString): boolean;
+var
+  V : TUTF8Value;
+  L : Integer;
+begin
+  CodePointToInts := False;
+  Ints:='';
+  while C <> '' do begin
+    L := CodePointLength(C);
+    if (L<1) then Exit;
+    if not CodePointToValue(C, V) then Exit;
+    if Ints <> '' then Ints:=Ints+',';
+    Ints:=Ints+IntToStr(V);
+    Delete(C, 1, L);
+  end;
+  CodePointToInts := True;
+end;
+
 { Unit initialization routines }
 var
   OldExitProc : pointer;
 
 procedure Initialize;
 begin
-  if Assigned(OldExitProc) then exit;
+  if Assigned(OldExitProc) then Exit;
   OldExitProc := ExitProc;
   ExitProc := @Finalize;
 end;
 
 procedure Finalize;
 begin
-  if not Assigned(OldExitProc) then exit;
+  if not Assigned(OldExitProc) then Exit;
   ExitProc := OldExitProc;
   OldExitProc := nil;
 end;

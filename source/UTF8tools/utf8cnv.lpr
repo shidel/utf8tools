@@ -30,7 +30,7 @@ type
 
 procedure TUTF8Convert.DoRun;
 begin
-  WriteLn('Codepages: ', CodepageList);
+  WriteHelp;
   // stop program loop
   Terminate;
 end;
@@ -48,8 +48,9 @@ end;
 
 procedure TUTF8Convert.WriteHelp;
 begin
-  { add your help code here }
-  writeln('Usage: ', ExeName, ' ', CommandSwitch, 'h');
+  WriteLn('Usage: ', 'utf8cnv', ' ', CommandSwitch, 'h');
+  WriteLn;
+  WriteLn('Available code pages: ', CodepageList);
 end;
 
 var

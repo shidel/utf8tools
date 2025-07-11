@@ -13,14 +13,16 @@ unit Codepage;
 
 interface
 
+uses Classes, SysUtils, Common, Unicode;
+
 function CodepageList : String;
+
+
 
 procedure Initialize;
 procedure Finalize;
 
 implementation
-
-uses SysUtils, Unicode;
 
 {$I maps\map_437.inc}
 {$I maps\map_850.inc}
@@ -33,8 +35,9 @@ uses SysUtils, Unicode;
 
 type
   TCodepage = record
-    CodePage:integer;
-    Mapping :TCodepageRemapEntries
+    CodePage : integer;
+    Mapping : TCodepageRemapEntries;
+    UTF8 : TMapTree;
   end;
 
 var
@@ -57,10 +60,28 @@ var
   OldExitProc : pointer;
 
 procedure AddCodepage(Codepage : integer; const Mapping : TCodepageRemapEntries);
+var
+  I, V, E : integer;
+  T, C, D : TMapString;
 begin
   SetLength(FCodepages, Length(FCodepages) + 1);
   FCodepages[High(FCodepages)].Codepage := Codepage;
   FCodepages[High(FCodepages)].Mapping := Mapping;
+  FCodepages[High(FCodepages)].UTF8 := TMapTree.Create;
+  for I := Low(UTF8toASCIIRemapList) to High(UTF8toASCIIRemapList) do begin
+    T := UTF8toASCIIRemapList[I].Data;
+    while T <> '' do begin
+      D := PopDelim(T, '/');
+      C := PopDelim(D, ',');
+      Val(C, V, E);
+      if (E <> 0) or (V <> Codepage) then Continue;
+      Val(D, V, E);
+      if E <> 0 then Continue;
+      D := Char(V);
+      if IntsToCodePoint(UTF8toASCIIRemapList[I].Value, C) then
+        FCodepages[High(FCodepages)].UTF8.Add(C, D);
+    end;
+  end;
 end;
 
 procedure Initialize;
@@ -78,10 +99,15 @@ begin
 end;
 
 procedure Finalize;
+var
+  I : integer;
 begin
   if not Assigned(OldExitProc) then exit;
   ExitProc := OldExitProc;
   OldExitProc := nil;
+  for I := High(FCodePages) downto Low(FCodepages) do
+    FreeAndNil(FCodepages[I].UTF8);
+  SetLength(FCodepages, 0);
 end;
 
 begin
