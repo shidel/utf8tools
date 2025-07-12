@@ -47,6 +47,7 @@ const
 
 type
 
+  { maybe use RawByteString instead of AnsiString }
   TMapString = AnsiString;
   TAsciiString = AnsiString;
   TUTF8String = AnsiString;
