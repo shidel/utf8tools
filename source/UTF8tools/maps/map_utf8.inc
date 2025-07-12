@@ -3058,6 +3058,7 @@ asm
 	db '9838',0,       'natur',0
 	db '988',0,        'Gammad',0
 	db '989',0,        'gammad',0
+	db 0
 end;
 
 {$ENDIF}

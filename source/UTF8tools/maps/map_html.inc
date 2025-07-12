@@ -4252,6 +4252,7 @@ asm
 	db 'zopf',0,                           '120171',0
 	db 'zwj',0,                            '8205',0
 	db 'zwnj',0,                           '8204',0
+	db 0
 end;
 
 {$ENDIF}
