@@ -16,21 +16,38 @@ interface
 uses Classes, SysUtils, Common, Unicode;
 
 type
+  { Results from converting text from UTF-8 to ASCII.
+    ASCII = The converted string.
+    Count = Number of processed characters.
+    Unicode = Number of valid unicode characters.
+    Match = Number of Unicode characters converted to Codepage. Indicates
+      correct codepage for conversion. Unicode = Match then proper codepage.
+    Other = Number of control and miscellaneous characters like CR, LF, etc.
+    Errors = Number of Broken, damaged or illegal UTF-8 characters. Indicates
+      either a corrupt file or non-UTF-8 encoded file.
+  }
   TResultsCP = record
-    Ascii : TAsciiString; { converted string }
-    Count : integer;      { total processed characters }
-    Unicode : integer;    { total of chars using unicode }
-    Match : integer;      { exists in codepage }
-    Other : integer;      { non-utf8 matched characters, like CRLF chars }
-    Errors : integer;     { illegal or damaged characters }
+    Ascii : TAsciiString;
+    Count : integer;
+    Unicode : integer;
+    Match : integer;
+    Other : integer;
+    Errors : integer;
   end;
 
+{ Return a comma separated sting of available codepages }
 function Codepages : String; overload;
+{ Return an array of available codepages }
 procedure Codepages(out List : TStringArray); overload;
 
+{ Converts a string of ASCII characters to UTF-8. Returns false if
+the requested codepage is not available. }
 function CodePageToUTF8(Codepage : integer; const S : TAsciiString;
   out U : TUTF8String; Options : TConvertOpts = []) : boolean; overload;
 
+{ Converts a UTF-8 string to ASCII text. Returns false if the requested
+codepage is not available. The converted text along with statistics are
+returned in a TResultsCP record. }
 function UTF8ToCodepage(Codepage : integer; const U : TUTF8String;
   out R : TResultsCP) : boolean;
 
