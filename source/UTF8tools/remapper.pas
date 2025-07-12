@@ -15,6 +15,11 @@ interface
 
 uses Classes, SysUtils, Common, Unicode;
 
+function UTF8toHTML( const U : TUTF8String; Options : TConvertOpts = [] )
+  : TUTF8String;
+
+function HTMLtoUTF8( const H : TUTF8String ) : TUTF8String;
+
 implementation
 
 {$I maps\map_html.inc}
@@ -23,6 +28,17 @@ implementation
 var
   FHTML,
   FUTF8 : TMapTree;
+
+function UTF8toHTML( const U : TUTF8String; Options : TConvertOpts = [] )
+  : TUTF8String;
+begin
+  UTF8toHTML:=U;
+end;
+
+function HTMLtoUTF8( const H : TUTF8String ) : TUTF8String;
+begin
+  HTMLtoUTF8:=H;
+end;
 
 function Encode(var H : TMapString; U : TMapString) : TUTF8CodePoint;
 begin

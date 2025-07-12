@@ -23,6 +23,7 @@ type
   public
     constructor Create(TheOwner: TComponent); override;
     destructor Destroy; override;
+    procedure WriteBanner; virtual;
     procedure WriteHelp; virtual;
   end;
 
@@ -31,33 +32,25 @@ type
 procedure TUTF8Convert.DoRun;
 var
   I : integer;
-  U : TUTF8String;
-  R : TResultsCP;
+  O : String;
 begin
-  if ParamCount = 0 then WriteHelp;
-  for I := 1 to ParamCount do begin
-    if not LoadFile(ParamStr(I), U) then begin
-      WriteLn(ParamStr(I), ' load failed.');
-      Continue;
+  WriteBanner;
+  if ParamCount = 0 then
+    WriteHelp
+  else begin
+    I := 0;
+    While (I < ParamCount) and (not Terminated) do begin
+      Inc(I);
+      O := ParamStr(I);
+      if Copy(O, 1, 1) = CommandSwitch then begin
+        case LowerCase(Copy(O, 2, Length(O))) of
+          '?', 'h', 'help' : WriteHelp;
+        else
+          WriteLn('invalid command line option "', O, '"');
+          Terminate(1);
+        end;
+      end;
     end;
-    if not UTF8ToCodePage(437, U, R) then begin
-      WriteLn(ParamStr(I), ' conversion failed.');
-      Continue;
-    end;
-    WriteLn('Characters: ', R.Count);
-    WriteLn('Unicode: ', R.Unicode);
-    WriteLn('Matched: ', R.Match);
-    WriteLn('Others: ', R.Other);
-    WriteLn('Errors: ', R.Errors);
-    if R.Ascii = U then begin
-      WriteLn(ParamStr(I), ' unchanged, conversion not required.');
-      Continue;
-    end;
-    if not SaveFile(ParamStr(I) + '.437', R.Ascii) then begin
-      WriteLn(ParamStr(I), '.437 save failed.');
-      Continue;
-    end;
-    WriteLn('save ', ParamStr(I), '.437');
   end;
   // stop program loop
   Terminate;
@@ -74,11 +67,21 @@ begin
   inherited Destroy;
 end;
 
+procedure TUTF8Convert.WriteBanner;
+begin
+  WriteLn(APP_FILEDESCRIPTION, ' (v', APP_VERSION, ')');
+  WriteLn( APP_COMMENTS, ', Copyright ', APP_LEGALCOPYRIGHT);
+  WriteLn;
+end;
+
 procedure TUTF8Convert.WriteHelp;
 begin
-  WriteLn('Usage: ', 'utf8cnv', ' ', CommandSwitch, 'h');
+  WriteLn('Usage: ', 'utf8cnv', ' [options] files...');
+  WriteLn;
+  WriteLn('  ', CommandSwitch, 'h', TAB2, 'display help text');
   WriteLn;
   WriteLn('Available code pages: ', Codepages);
+  Terminate;
 end;
 
 var
@@ -88,7 +91,7 @@ var
 
 begin
   Application:=TUTF8Convert.Create(nil);
-  Application.Title:='UTF8 Converter';
+  Application.Title:=APP_PRODUCTNAME;
   Application.Run;
   Application.Free;
 end.

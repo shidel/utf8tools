@@ -41,11 +41,9 @@ const
   COLON       = #$3a;
   SEMICOLON   = #$3b;
 
+  TAB2        = TAB + TAB;
+
   MaxInteger  = MaxLongInt;
-
-
-  OutputPath    : String = '';
-
 
 type
 
