@@ -406,7 +406,7 @@ begin
   { Encode with each codepage to detect language }
   W := 0;
   L := '';
-  P := 0;
+  P := -1;
   TP := -1;
   SetLength(U, Length(C));
   for I := 0 to Length(C) - 1 do begin
@@ -419,15 +419,18 @@ begin
       P:=I;
     end;
   end;
-  if P = -1 then
-    WriteLn(TAB, 'warning: unable to detect codepage')
+  if P = -1 then begin
+    WriteLn(TAB, 'warning: unable to detect codepage');
+    P := 0;
+  end
   else
     WriteLn(TAB, 'probably converting from codepage ', C[P]);
+
   if (TP <> -1) and (TP <> P) then begin
     P := TP;
     WriteLn(TAB, 'warning: convert using codepage ', C[P]);
   end;
-  if not NeedSaved(A, U[I]) then Exit;
+  if not NeedSaved(A, U[P]) then Exit;
   Filename:=OutName(FileName, 'utf8');
   if FileExists(Filename) then
     if DontOverwrite then Exit;
