@@ -41,6 +41,8 @@ type
 function Codepages : String; overload;
 { Return an array of available Codepages }
 procedure Codepages(out List : TStringArray); overload;
+{ Return an array of available Codepages }
+procedure Codepages(out List : TIntArray); overload;
 
 { Determine if a Codepage is supported }
 function CodepageKnown(Codepage : Integer) :boolean;
@@ -98,6 +100,21 @@ end;
 procedure Codepages(out List: TStringArray); overload;
 begin
   List:=Explode(Codepages,', ');
+end;
+
+procedure Codepages(out List: TIntArray);
+var
+  L : TStringArray;
+  I, V, E : integer;
+begin
+  Codepages(L);
+  List:=[];
+  SetLength(List, Length(L));
+  for I := Low(L) to High(L) do begin
+    Val(L[I], V, E);
+    if E <> 0 then V:=-1;
+    List[I]:=V;
+  end;
 end;
 
 function CodepageIndex(Codepage : Integer) :integer;

@@ -65,6 +65,8 @@ type
 
   { TMapNode }
 
+  TIntArray = array of Integer;
+
   TMapNode = class
   private
     FValue: TMapString;

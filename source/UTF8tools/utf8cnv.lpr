@@ -31,6 +31,7 @@ type
     FToUTF8: boolean;
     FNoSuffix: boolean;
     FForced: boolean;
+    FOptions:TConvertOpts;
   protected
     procedure DoRun; override;
   public
@@ -43,8 +44,15 @@ type
     function NeedSaved(const A, B : String) : boolean; virtual;
     procedure MakeFileList; virtual;
     procedure ProcessFiles; virtual;
+    function Load(Filename : String; out Data : AnsiString) : boolean; virtual;
+    function Save(Filename : String; const Data : AnsiString) : boolean; virtual;
+    function OutName(FileName, Suffix : String) : String; virtual;
     procedure FileText(Filename : String); virtual;
     procedure FileHTML(Filename : String); virtual;
+    procedure UTF8toTEXT(Filename : String); virtual;
+    procedure UTF8toHTML(Filename : String); virtual;
+    procedure HTMLtoUTF8(Filename : String); virtual;
+    procedure TEXTtoUTF8(Filename : String); virtual;
   end;
 
 { TUTF8Convert }
@@ -116,6 +124,10 @@ begin
       end;
     end; {param}
   end;
+  if FControlCodes then
+    FOptions:=FOptions + [cvCtrlChars];
+  if FHTMLCodes then
+    FOptions:=FOptions + [cvHTMLCodes];
   if not Terminated then MakeFileList;
   if not Terminated then ProcessFiles;
   // stop program loop
@@ -127,6 +139,7 @@ begin
   inherited Create(TheOwner);
   StopOnException:=True;
   FFiles:=TStringList.Create;
+  FOptions:=[];
   FCodePage:=-1;
 end;
 
@@ -236,6 +249,7 @@ var
   I : integer;
 begin
   for I := 0 to FFiles.Count - 1 do begin
+    WriteLn('Processing: ', FFiles[I]);
     case LowerCase(ExtractFileExt(FFiles[I])) of
       '.html', '.htm' : FileHTML(FFiles[I]);
     else
@@ -245,73 +259,143 @@ begin
   end;
 end;
 
+function TUTF8Convert.Load(Filename: String; out Data: AnsiString): boolean;
+begin
+  if not LoadFile(Filename, Data) then begin
+    WriteLn('error loading file: ', Filename);
+    Load:=False;
+    Terminate(1);
+  end else
+    Load:=True
+end;
+
+function TUTF8Convert.Save(Filename: String; const Data: AnsiString): boolean;
+begin
+  if not SaveFile(Filename, Data) then begin
+    WriteLn('error saving file: ', Filename);
+    Save:=False;
+    Terminate(1);
+  end else begin
+    WriteLn(TAB, 'file saved');
+    Save:=True
+  end;
+end;
+
+function TUTF8Convert.OutName(FileName, Suffix: String): String;
+begin
+  OutName := Filename;
+   if not FNoSuffix then
+     OutName := OutName + SUFFIXDELIM + Suffix;
+   if FOutPath <> '' then
+     OutName := FOutPath + ExtractFilename(OutName);
+   WriteLn(TAB, 'output file: ', OutName);
+end;
+
 procedure TUTF8Convert.FileText(Filename: String);
+begin
+  if FToUTF8 then
+    TEXTtoUTF8(Filename)
+  else
+    UTF8toTEXT(Filename)
+end;
+
+procedure TUTF8Convert.FileHTML(Filename: String);
+begin
+  if FToUTF8 then
+    HTMLtoUTF8(Filename)
+  else
+    UTF8toHTML(Filename)
+end;
+
+procedure TUTF8Convert.UTF8toTEXT(Filename: String);
 var
   U : TUTF8String;
   R : TArrayResultsCP;
   D, P, I : integer;
   Q : Integer;
-  O : String;
 begin
-  WriteLn('Processing: ', Filename);
-  if FToUTF8 then begin
+  if not Load(Filename, U) then Exit;
+  D := UTF8toCodepage(U, R);
+  P := D;
+  if D = -1 then begin
+    if R[0].Errors = 0 then begin
+      WriteLn(TAB, 'conversion not required.');
+      if Not FSaveAnyway then Exit;
+    end else begin
+      WriteLn(TAB, 'not UTF-8 encoded.');
+      if Not FForced then Exit;
+    end;
+  end;
+  if P = -1 then P:=0;
+  if FReportOnly then begin
+    WriteLn(TAB,'Codepage UTF-8 compatibility:');
+    for I := 0 to Length(R) - 1 do begin
+      Q:=Percent(R[I].Match, R[I].Unicode);
+      Write(TAB2, R[I].Codepage, ', ', Q, '% match');
+      if D = I then Write(' (detected)') else
+      if P = I then Write(' (default)');
+      if R[I].Codepage = FCodepage then Write(' (override)');
+      WriteLn;
+    end;
+  end;
+  for I := 0 to Length(R) - 1 do
+    if R[I].Codepage = FCodepage then
+      P:=I;
+  Q:=Percent(R[P].Match, R[P].Unicode);
+  if Q = 0 then
+    WriteLn(TAB, 'warning: not compatible with codepage ', R[P].Codepage)
+  else if Q <> 100 then
+    WriteLn(TAB, 'warning: only ', Q, '% match with codepage ', R[P].Codepage);
+  if (Q <> 100) and (not FForced) then begin
+    WontSave;
+    Exit;
+  end;
+  Filename:=OutName(FileName, IntToStr(R[P].Codepage));
+  if FileExists(Filename) then
+    if DontOverwrite then Exit;
+  if not NeedSaved(U, R[P].Ascii) then Exit;
+  if FReportOnly then Exit;
+  Save(Filename, R[P].Ascii);
+end;
 
-  end else begin
-    if not LoadFile(FileName, U) then begin
-      WriteLn('error loading file: ', Filename);
-      Terminate(1);
+procedure TUTF8Convert.TEXTtoUTF8(Filename: String);
+var
+  A : TAsciiString;
+  C : TIntArray;
+  U : array of TUTF8String;
+  I : Integer;
+  P : integer;
+  R : TResultsCP;
+begin
+  U:=[];
+  if not Load(Filename, A) then Exit;
+  P := FCodepage;
+  Codepages(C);
+  SetLength(U, Length(C));
+  UTF8toCodepage(437,A,R);
+  if (R.Unicode > 0) and (R.Errors = 0) then begin
+    WriteLn(TAB, 'warning: already encoded as UTF-8');
+    if (not FForced) and FSaveAnyway then begin
+      Filename:=OutName(FileName, 'utf8');
+      if FileExists(Filename) then
+        if DontOverwrite then Exit;
+      Save(Filename, A);
       Exit;
     end;
-    D := UTF8toCodepage(U, R);
-    P := D;
-    if D = -1 then begin
-      if R[0].Errors = 0 then begin
-        WriteLn(TAB, 'conversion not required.');
-        if Not FSaveAnyway then Exit;
-      end else begin
-        WriteLn(TAB, 'not UTF-8 encoded.');
-        if Not FForced then Exit;
-      end;
+  end;
+  if P = -1 then begin
+    for I := 0 to Length(C) -1 do begin
+      CodepageToUTF8(C[I], A, U[I], FOptions);
     end;
-    if P = -1 then P:=0;
-    if FReportOnly then begin
-      WriteLn(TAB,'Codepage UTF-8 compatibility:');
-      for I := 0 to Length(R) - 1 do begin
-        Q:=Percent(R[I].Match, R[I].Unicode);
-        Write(TAB2, R[I].Codepage, ', ', Q, '% match');
-        if D = I then Write(' (detected)') else
-        if P = I then Write(' (default)');
-        if R[I].Codepage = FCodepage then Write(' (override)');
-        WriteLn;
-      end;
-    end;
-    for I := 0 to Length(R) - 1 do
-      if R[I].Codepage = FCodepage then
-        P:=I;
-    Q:=Percent(R[P].Match, R[P].Unicode);
-    if Q = 0 then
-      WriteLn(TAB, 'warning: not compatible with codepage ', R[P].Codepage)
-    else if Q <> 100 then
-      WriteLn(TAB, 'warning: only ', Q, '% match with codepage ', R[P].Codepage);
-    if (Q <> 100) and (not FForced) then begin
-      WontSave;
-      Exit;
-    end;
-    O := FileName;
-    if not FNoSuffix then
-      O := O + SUFFIXDELIM + IntToStr(R[P].Codepage);
-    if FOutPath <> '' then
-      O := FOutPath + ExtractFilename(O);
-    WriteLn(TAB, 'output file: ', O);
-    if FileExists(O) then
-      if DontOverwrite then Exit;
-    if not NeedSaved(U, R[P].Ascii) then Exit;
-    if FReportOnly then Exit;
-
   end;
 end;
 
-procedure TUTF8Convert.FileHTML(Filename: String);
+procedure TUTF8Convert.UTF8toHTML(Filename: String);
+begin
+
+end;
+
+procedure TUTF8Convert.HTMLtoUTF8(Filename: String);
 begin
 
 end;
