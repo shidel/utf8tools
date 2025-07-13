@@ -11,7 +11,7 @@ uses
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}
-  Classes, SysUtils, CustApp, Common, Unicode, Codepage, Remapper;
+  Classes, SysUtils, CustApp, Common, Unicode, Codepage, Remapper, Diction;
 
 type
 
@@ -204,7 +204,7 @@ function TUTF8Convert.NeedSaved(const A, B: String): boolean;
 begin
   NeedSaved:=True;
   if A = B then begin
-    WriteLn(TAB, 'notice: no conversion required');
+    WriteLn(TAB, 'notice: conversion not required');
     NeedSaved:=FSaveAnyway;
     if FSaveAnyway then
       WriteLn(TAB, 'notice: will save copy anyway');
@@ -364,15 +364,16 @@ var
   C : TIntArray;
   U : array of TUTF8String;
   I : Integer;
-  P : integer;
+  P, TP : Integer;
+  L, TL : String;
+  W, TW : integer;
   R : TResultsCP;
 begin
   U:=[];
   if not Load(Filename, A) then Exit;
-  P := FCodepage;
   Codepages(C);
-  SetLength(U, Length(C));
   UTF8toCodepage(437,A,R);
+  { test if already UTF-8 encoded }
   if (R.Unicode > 0) and (R.Errors = 0) then begin
     WriteLn(TAB, 'warning: already encoded as UTF-8');
     if (not FForced) and FSaveAnyway then begin
@@ -382,12 +383,55 @@ begin
       Save(Filename, A);
       Exit;
     end;
-  end;
-  if P = -1 then begin
-    for I := 0 to Length(C) -1 do begin
-      CodepageToUTF8(C[I], A, U[I], FOptions);
+    if (not FForced) then begin
+      WontSave;
+      Exit;
     end;
   end;
+  { test if requires encoding }
+  if (R.Unicode = 0) and (R.Errors = 0) then begin
+     WriteLn(TAB, 'warning: UTF-8 encoding is not needed');
+     if (not FForced) and FSaveAnyway then begin
+       Filename:=OutName(FileName, 'utf8');
+       if FileExists(Filename) then
+         if DontOverwrite then Exit;
+       Save(Filename, A);
+       Exit;
+     end;
+     if (not FForced) then begin
+       WontSave;
+       Exit;
+     end;
+   end;
+  { Encode with each codepage to detect language }
+  W := 0;
+  L := '';
+  P := 0;
+  TP := -1;
+  SetLength(U, Length(C));
+  for I := 0 to Length(C) - 1 do begin
+    CodepageToUTF8(C[I], A, U[I], FOptions);
+    if C[I] = FCodePage then TP := I;
+    DetectLanguage(U[I], TL, TW);
+    if TW > W then begin
+      L:=TL;
+      W:=TW;
+      P:=I;
+    end;
+  end;
+  if P = -1 then
+    WriteLn(TAB, 'warning: unable to detect codepage')
+  else
+    WriteLn(TAB, 'probably converting from codepage ', C[P]);
+  if (TP <> -1) and (TP <> P) then begin
+    P := TP;
+    WriteLn(TAB, 'warning: convert using codepage ', C[P]);
+  end;
+  if not NeedSaved(A, U[I]) then Exit;
+  Filename:=OutName(FileName, 'utf8');
+  if FileExists(Filename) then
+    if DontOverwrite then Exit;
+  Save(Filename, A);
 end;
 
 procedure TUTF8Convert.UTF8toHTML(Filename: String);
