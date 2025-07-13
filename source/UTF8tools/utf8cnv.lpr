@@ -24,6 +24,8 @@ type
     FOverwrite: boolean;
     FReportOnly: boolean;
     FSaveAnyway: boolean;
+    FHTMLCodes: boolean;
+    FCodepage:integer;
   protected
     procedure DoRun; override;
   public
@@ -33,6 +35,8 @@ type
     procedure WriteHelp; virtual;
     procedure MakeFileList; virtual;
     procedure ProcessFiles; virtual;
+    procedure FileText(Filename : String); virtual;
+    procedure FileHTML(Filename : String); virtual;
   end;
 
 { TUTF8Convert }
@@ -40,6 +44,7 @@ type
 procedure TUTF8Convert.DoRun;
 var
   I : integer;
+  E : integer;
   O : String;
 begin
   if ParamCount = 0 then
@@ -57,6 +62,29 @@ begin
             's' : FSaveAnyway:=True;
             'w' : FOverwrite:=True;
             'r' : FReportOnly:=True;
+            'x' : FHTMLCodes:=True;
+            'e' : FHTMLCodes:=False;
+            'c' : begin
+              if I >= ParamCount then begin
+                WriteLn('code page ID not specified');
+                Terminate(1);
+              end;
+              Inc(I);
+              if FCodePage <> -1 then begin
+                WriteLn('code page ID already specified as ', FCodePage);
+                Terminate(1);
+              end else begin
+                Val(ParamStr(I), FCodepage, E);
+                if E <> 0 then begin
+                  WriteLn('invalid code page ID: "', ParamStr(I), '"');
+                  Terminate(1);
+                end else if not CodePageKnown(FCodePage) then begin
+                  WriteLn('code page ', FCodePage, ' is not supported');
+                  WriteLn('available code pages: ', Codepages);
+                  Terminate(1);
+                end;
+              end;
+            end;
             'o' : begin
               if I >= ParamCount then begin
                 WriteLn('output path not specified');
@@ -86,6 +114,7 @@ begin
   inherited Create(TheOwner);
   StopOnException:=True;
   FFiles:=TStringList.Create;
+  FCodePage:=-1;
 end;
 
 destructor TUTF8Convert.Destroy;
@@ -111,7 +140,11 @@ begin
   WriteLn('  ', CommandSwitch, 's', TAB2, 'save even if not modified');
   WriteLn('  ', CommandSwitch, 'w', TAB2, 'overwrite existing files');
   WriteLn('  ', CommandSwitch, 'o path', TAB, 'designate output path');
-
+  WriteLn;
+  WriteLn('  ', CommandSwitch, 'x', TAB2, 'HTML, prefer value codes');
+  WriteLn('  ', CommandSwitch, 'e', TAB2, 'HTML, prefer entity names (default)');
+  WriteLn;
+  WriteLn('  ', CommandSwitch, 'c id', TAB2, 'specify code page');
   WriteLn;
   WriteLn('Available code pages: ', Codepages);
   Terminate;
@@ -155,8 +188,25 @@ var
   I : integer;
 begin
   for I := 0 to FFiles.Count - 1 do begin
+    case LowerCase(ExtractFileExt(FFiles[I])) of
+      '.html', '.htm' : FileHTML(FFiles[I]);
+    else
+      FileText(FFiles[I]);
+    end;
     if Terminated then Break;
   end;
+end;
+
+procedure TUTF8Convert.FileText(Filename: String);
+var
+  I : integer;
+begin
+
+end;
+
+procedure TUTF8Convert.FileHTML(Filename: String);
+begin
+
 end;
 
 var

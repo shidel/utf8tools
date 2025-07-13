@@ -40,6 +40,9 @@ function Codepages : String; overload;
 { Return an array of available codepages }
 procedure Codepages(out List : TStringArray); overload;
 
+{ Determine if a Codepage is supported }
+function CodePageKnown(Codepage : Integer) :boolean;
+
 { Converts a string of ASCII characters to UTF-8. Returns false if
 the requested codepage is not available. }
 function CodePageToUTF8(Codepage : integer; const S : TAsciiString;
@@ -99,6 +102,11 @@ begin
       CodePageIndex := I;
       Break;
     end;
+end;
+
+function CodePageKnown(Codepage : Integer) :boolean;
+begin
+  CodePageKnown:=CodePageIndex(CodePage) <> -1;
 end;
 
 function CodePageToUTF8(Codepage : integer; const S : TAsciiString; out U : TUTF8String; Options : TConvertOpts = []) : boolean;
