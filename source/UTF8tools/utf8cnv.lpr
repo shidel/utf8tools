@@ -24,11 +24,6 @@ type
     FOverwrite: boolean;
     FReportOnly: boolean;
     FSaveAnyway: boolean;
-    procedure SetFiles(AValue: TStringList);
-    procedure SetOutPath(AValue: String);
-    procedure SetOverwrite(AValue: boolean);
-    procedure SetReportOnly(AValue: boolean);
-    procedure SetSaveAnyway(AValue: boolean);
   protected
     procedure DoRun; override;
   public
@@ -37,44 +32,10 @@ type
     procedure WriteBanner; virtual;
     procedure WriteHelp; virtual;
     procedure MakeFileList; virtual;
-    property OutPath : String read FOutPath write SetOutPath;
-    property Overwrite : boolean read FOverwrite write SetOverwrite;
-    property SaveAnyway : boolean read FSaveAnyway write SetSaveAnyway;
-    property ReportOnly : boolean read FReportOnly write SetReportOnly;
-    property Files : TStringList read FFiles write SetFiles;
+    procedure ProcessFiles; virtual;
   end;
 
 { TUTF8Convert }
-
-procedure TUTF8Convert.SetOutPath(AValue: String);
-begin
-  if FOutPath=AValue then Exit;
-  FOutPath:=AValue;
-end;
-
-procedure TUTF8Convert.SetFiles(AValue: TStringList);
-begin
-  if FFiles=AValue then Exit;
-  FFiles:=AValue;
-end;
-
-procedure TUTF8Convert.SetOverwrite(AValue: boolean);
-begin
-  if FOverwrite=AValue then Exit;
-  FOverwrite:=AValue;
-end;
-
-procedure TUTF8Convert.SetReportOnly(AValue: boolean);
-begin
-  if FReportOnly=AValue then Exit;
-  FReportOnly:=AValue;
-end;
-
-procedure TUTF8Convert.SetSaveAnyway(AValue: boolean);
-begin
-  if FSaveAnyway=AValue then Exit;
-  FSaveAnyway:=AValue;
-end;
 
 procedure TUTF8Convert.DoRun;
 var
@@ -93,19 +54,19 @@ begin
           Delete(O, 1, 1);
           case Copy(O, 1, 1) of
             '?', 'h' : WriteHelp;
-            's' : SaveAnyway:=True;
-            'w' : Overwrite:=True;
-            'r' : ReportOnly:=True;
+            's' : FSaveAnyway:=True;
+            'w' : FOverwrite:=True;
+            'r' : FReportOnly:=True;
             'o' : begin
               if I >= ParamCount then begin
                 WriteLn('output path not specified');
                 Terminate(1);
               end;
               Inc(I);
-              OutPath := ParamStr(I);
+              FOutPath := ParamStr(I);
             end
           else
-            WriteLn('invalid command line option "', O, '"');
+            WriteLn('invalid command line option "', CommandSwitch, O, '"');
             Terminate(1);
           end;
         until (Length(O) = 1) or Terminated;
@@ -114,9 +75,8 @@ begin
       end;
     end; {param}
   end;
-  if not Terminated then
-    MakeFileList;
-
+  if not Terminated then MakeFileList;
+  if not Terminated then ProcessFiles;
   // stop program loop
   Terminate;
 end;
@@ -164,7 +124,7 @@ var
   P : String;
   I, E : integer;
 begin
-  if (Files.Count = 0) then begin
+  if (FFiles.Count = 0) then begin
      WriteLn('no files specified');
      Terminate(1);
      Exit;
@@ -182,12 +142,21 @@ begin
       Terminate(1);
       { Break; }
     end else while E = 0 do begin
-      Files.Add(P + S.Name);
+      FFiles.Add(P + S.Name);
       E :=FindNext(S);
     end;
     FindClose(S);
   end;
   L.Free;
+end;
+
+procedure TUTF8Convert.ProcessFiles;
+var
+  I : integer;
+begin
+  for I := 0 to FFiles.Count - 1 do begin
+    if Terminated then Break;
+  end;
 end;
 
 var
