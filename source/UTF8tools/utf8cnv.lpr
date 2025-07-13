@@ -25,7 +25,12 @@ type
     FReportOnly: boolean;
     FSaveAnyway: boolean;
     FHTMLCodes: boolean;
-    FCodepage:integer;
+    FHTMLasText: boolean;
+    FControlCodes: boolean;
+    FCodepage: integer;
+    FToUTF8: boolean;
+    FNoSuffix: boolean;
+    FForced: boolean;
   protected
     procedure DoRun; override;
   public
@@ -33,6 +38,9 @@ type
     destructor Destroy; override;
     procedure WriteBanner; virtual;
     procedure WriteHelp; virtual;
+    procedure WontSave(M : String = ''); virtual;
+    function DontOverwrite : boolean; virtual;
+    function NeedSaved(const A, B : String) : boolean; virtual;
     procedure MakeFileList; virtual;
     procedure ProcessFiles; virtual;
     procedure FileText(Filename : String); virtual;
@@ -61,9 +69,14 @@ begin
             '?', 'h' : WriteHelp;
             's' : FSaveAnyway:=True;
             'w' : FOverwrite:=True;
-            'r' : FReportOnly:=True;
+            't' : FReportOnly:=True;
             'x' : FHTMLCodes:=True;
             'e' : FHTMLCodes:=False;
+            'u' : FToUTF8:=True;
+            'f' : FForced:=True;
+            'n' : FNoSuffix:=True;
+            'k' : FControlCodes:=True;
+            'j' : FHTMLasText:=True;
             'c' : begin
               if I >= ParamCount then begin
                 WriteLn('code page ID not specified');
@@ -91,7 +104,7 @@ begin
                 Terminate(1);
               end;
               Inc(I);
-              FOutPath := ParamStr(I);
+              FOutPath := IncludeTrailingPathDelimiter(ParamStr(I));
             end
           else
             WriteLn('invalid command line option "', CommandSwitch, O, '"');
@@ -136,18 +149,53 @@ begin
   WriteLn;
   WriteLn('  ', CommandSwitch, 'h', TAB2, 'display help text');
   WriteLn;
-  WriteLn('  ', CommandSwitch, 'r', TAB2, 'report only');
+  WriteLn('  ', CommandSwitch, 't', TAB2, 'test, report only');
   WriteLn('  ', CommandSwitch, 's', TAB2, 'save even if not modified');
   WriteLn('  ', CommandSwitch, 'w', TAB2, 'overwrite existing files');
+  WriteLn('  ', CommandSwitch, 'n', TAB2, 'do not append conversion suffix');
   WriteLn('  ', CommandSwitch, 'o path', TAB, 'designate output path');
   WriteLn;
   WriteLn('  ', CommandSwitch, 'x', TAB2, 'HTML, prefer value codes');
   WriteLn('  ', CommandSwitch, 'e', TAB2, 'HTML, prefer entity names (default)');
   WriteLn;
-  WriteLn('  ', CommandSwitch, 'c id', TAB2, 'specify code page');
+  WriteLn('  ', CommandSwitch, 'u', TAB2, 'convert to UTF-8 instead of from');
+  WriteLn;
+  WriteLn('  ', CommandSwitch, 'c id', TAB2, 'specify a specific code page');
+  WriteLn;
+  WriteLn('The followng options are generally not recommended:');
+  WriteLn;
+  WriteLn('  ', CommandSwitch, 'f', TAB2, 'force conversion');
+  WriteLn('  ', CommandSwitch, 'k', TAB2, 'convert control codes');
+  WriteLn('  ', CommandSwitch, 'j', TAB2, 'HTML as plain text');
   WriteLn;
   WriteLn('Available code pages: ', Codepages);
   Terminate;
+end;
+
+procedure TUTF8Convert.WontSave(M : String = '');
+begin
+  if M <> '' then M := M + SPACE;
+  WriteLn(TAB, 'warning: ', M, 'file will not be saved');
+end;
+
+function TUTF8Convert.DontOverwrite: boolean;
+begin
+  if FOverwrite then
+    WriteLn(TAB,'warning: will overwrite existing file')
+  else
+    WontSave('already exists.');
+  DontOverwrite:=not FOverwrite;
+end;
+
+function TUTF8Convert.NeedSaved(const A, B: String): boolean;
+begin
+  NeedSaved:=True;
+  if A = B then begin
+    WriteLn(TAB, 'notice: no conversion required');
+    NeedSaved:=FSaveAnyway;
+    if FSaveAnyway then
+      WriteLn(TAB, 'notice: will save copy anyway');
+  end;
 end;
 
 procedure TUTF8Convert.MakeFileList;
@@ -199,9 +247,68 @@ end;
 
 procedure TUTF8Convert.FileText(Filename: String);
 var
-  I : integer;
+  U : TUTF8String;
+  R : TArrayResultsCP;
+  D, P, I : integer;
+  Q : Integer;
+  O : String;
 begin
+  WriteLn('Processing: ', Filename);
+  if FToUTF8 then begin
 
+  end else begin
+    if not LoadFile(FileName, U) then begin
+      WriteLn('error loading file: ', Filename);
+      Terminate(1);
+      Exit;
+    end;
+    D := UTF8toCodepage(U, R);
+    P := D;
+    if D = -1 then begin
+      if R[0].Errors = 0 then begin
+        WriteLn(TAB, 'conversion not required.');
+        if Not FSaveAnyway then Exit;
+      end else begin
+        WriteLn(TAB, 'not UTF-8 encoded.');
+        if Not FForced then Exit;
+      end;
+    end;
+    if P = -1 then P:=0;
+    if FReportOnly then begin
+      WriteLn(TAB,'Codepage UTF-8 compatibility:');
+      for I := 0 to Length(R) - 1 do begin
+        Q:=Percent(R[I].Match, R[I].Unicode);
+        Write(TAB2, R[I].Codepage, ', ', Q, '% match');
+        if D = I then Write(' (detected)') else
+        if P = I then Write(' (default)');
+        if R[I].Codepage = FCodepage then Write(' (override)');
+        WriteLn;
+      end;
+    end;
+    for I := 0 to Length(R) - 1 do
+      if R[I].Codepage = FCodepage then
+        P:=I;
+    Q:=Percent(R[P].Match, R[P].Unicode);
+    if Q = 0 then
+      WriteLn(TAB, 'warning: not compatible with codepage ', R[P].Codepage)
+    else if Q <> 100 then
+      WriteLn(TAB, 'warning: only ', Q, '% match with codepage ', R[P].Codepage);
+    if (Q <> 100) and (not FForced) then begin
+      WontSave;
+      Exit;
+    end;
+    O := FileName;
+    if not FNoSuffix then
+      O := O + SUFFIXDELIM + IntToStr(R[P].Codepage);
+    if FOutPath <> '' then
+      O := FOutPath + ExtractFilename(O);
+    WriteLn(TAB, 'output file: ', O);
+    if FileExists(O) then
+      if DontOverwrite then Exit;
+    if not NeedSaved(U, R[P].Ascii) then Exit;
+    if FReportOnly then Exit;
+
+  end;
 end;
 
 procedure TUTF8Convert.FileHTML(Filename: String);

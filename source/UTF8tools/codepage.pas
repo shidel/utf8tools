@@ -21,12 +21,13 @@ type
     Count = Number of processed characters.
     Unicode = Number of valid unicode characters.
     Match = Number of Unicode characters converted to Codepage. Indicates
-      correct codepage for conversion. Unicode = Match then proper codepage.
+      correct Codepage for conversion. Unicode = Match then proper Codepage.
     Other = Number of control and miscellaneous characters like CR, LF, etc.
     Errors = Number of Broken, damaged or illegal UTF-8 characters. Indicates
       either a corrupt file or non-UTF-8 encoded file.
   }
   TResultsCP = record
+    Codepage : integer;
     Ascii : TAsciiString;
     Count : integer;
     Unicode : integer;
@@ -34,25 +35,32 @@ type
     Other : integer;
     Errors : integer;
   end;
+  TArrayResultsCP = array of TResultsCP;
 
-{ Return a comma separated sting of available codepages }
+{ Return a comma separated sting of available Codepages }
 function Codepages : String; overload;
-{ Return an array of available codepages }
+{ Return an array of available Codepages }
 procedure Codepages(out List : TStringArray); overload;
 
 { Determine if a Codepage is supported }
-function CodePageKnown(Codepage : Integer) :boolean;
+function CodepageKnown(Codepage : Integer) :boolean;
 
 { Converts a string of ASCII characters to UTF-8. Returns false if
-the requested codepage is not available. }
-function CodePageToUTF8(Codepage : integer; const S : TAsciiString;
+the requested Codepage is not available. }
+function CodepageToUTF8(Codepage : integer; const S : TAsciiString;
   out U : TUTF8String; Options : TConvertOpts = []) : boolean; overload;
 
 { Converts a UTF-8 string to ASCII text. Returns false if the requested
-codepage is not available. The converted text along with statistics are
+Codepage is not available. The converted text along with statistics are
 returned in a TResultsCP record. }
 function UTF8ToCodepage(Codepage : integer; const U : TUTF8String;
-  out R : TResultsCP) : boolean;
+  out R : TResultsCP) : boolean; overload;
+
+{ Perform UTF-8 conversion to ASCII for each Codepage. Return index of
+first best matching conversion or -1 (most likely not UTF-8, or does not
+require conversion. Check Error count and/or compare result.)}
+function UTF8ToCodepage(const U : TUTF8String; out R : TArrayResultsCP)
+  : integer; overload;
 
 implementation
 
@@ -67,13 +75,13 @@ implementation
 
 type
   TCodepage = record
-    CodePage : integer;
+    Codepage : integer;
     Mapping : TCodepageRemapEntries;
     UTF8 : TMapTree;
   end;
 
 var
-  FCodePages : array of TCodepage;
+  FCodepages : array of TCodepage;
 
 function Codepages: String; overload;
 var
@@ -83,7 +91,7 @@ begin
   for I := Low(FCodepages) to High(FCodepages) do begin
     if I > Low(FCodepages) then
       Codepages:=Codepages+', ';
-    Codepages:=Codepages+IntToStr(FCodepages[I].CodePage);
+    Codepages:=Codepages+IntToStr(FCodepages[I].Codepage);
   end;
 end;
 
@@ -92,31 +100,31 @@ begin
   List:=Explode(Codepages,', ');
 end;
 
-function CodePageIndex(Codepage : Integer) :integer;
+function CodepageIndex(Codepage : Integer) :integer;
 var
   I : integer;
 begin
-  CodePageIndex:=-1;
+  CodepageIndex:=-1;
   for I := Low(FCodepages) to High(FCodepages) do
-    if Codepage=FCodepages[I].CodePage then begin
-      CodePageIndex := I;
+    if Codepage=FCodepages[I].Codepage then begin
+      CodepageIndex := I;
       Break;
     end;
 end;
 
-function CodePageKnown(Codepage : Integer) :boolean;
+function CodepageKnown(Codepage : Integer) :boolean;
 begin
-  CodePageKnown:=CodePageIndex(CodePage) <> -1;
+  CodepageKnown:=CodepageIndex(Codepage) <> -1;
 end;
 
-function CodePageToUTF8(Codepage : integer; const S : TAsciiString; out U : TUTF8String; Options : TConvertOpts = []) : boolean;
+function CodepageToUTF8(Codepage : integer; const S : TAsciiString; out U : TUTF8String; Options : TConvertOpts = []) : boolean;
 var
   P, I, C, V: Integer;
   X : TUTF8CodePoint;
 begin
-  CodePageToUTF8:=False;
+  CodepageToUTF8:=False;
   U:='';
-  P := CodePageIndex(CodePage);
+  P := CodepageIndex(Codepage);
   if P = -1 then Exit;
   for I := 1 to Length(S) do begin
     V := Byte(S[I]);
@@ -135,7 +143,7 @@ begin
       U:=U+X;
     end;
   end;
-  CodePageToUTF8:=True;
+  CodepageToUTF8:=True;
 end;
 
 function UTF8ToCodepage(Codepage: integer; const U: TUTF8String; out
@@ -148,14 +156,16 @@ var
   N : TMapNode;
 begin
   UTF8ToCodepage:=False;
+  R.Codepage:=-1;
   R.Ascii:='';
   R.Count:=0;
   R.Unicode:=0;
   R.Match:=0;
   R.Other:=0;
   R.Errors:=0;
-  P:=CodePageIndex(CodePage);
+  P:=CodepageIndex(Codepage);
   if P = -1 then Exit;
+  R.Codepage:=Codepage;
   I := 1;
   while I <= Length(U) do begin
     W:=Copy(U,I, 4);
@@ -170,7 +180,7 @@ begin
       if L = 1 then { Only 1 char then is not a Unicode character }
         N := Nil
       else
-        N:=FCodePages[P].UTF8.Search(W, True); { no combo UTF-8 chars }
+        N:=FCodepages[P].UTF8.Search(W, True); { no combo UTF-8 chars }
       if Assigned(N) then
         Inc(R.Match)
       else
@@ -184,6 +194,24 @@ begin
     Inc(I, L);
   end;
   UTF8ToCodepage:=True;
+end;
+
+function UTF8ToCodepage(const U: TUTF8String; out R: TArrayResultsCP): integer;
+var
+  I : integer;
+  M : integer;
+begin
+  R:=[];
+  UTF8ToCodepage:=-1;
+  M := 0;
+  SetLength(R, Length(FCodepages));
+  for I := 0 to Length(R) - 1 do begin
+    UTF8ToCodepage(FCodepages[I].Codepage, U, R[I]);
+    if R[I].Errors > 0 then Continue;
+    If R[I].Match <= M then Continue;
+    M := R[I].Match;
+    UTF8ToCodepage:=I;
+  end;
 end;
 
 
@@ -217,19 +245,19 @@ end;
 procedure Initialize;
 begin
   FCodepages:=[];
-  AddCodePage(437, CP437toUTF8RemapList);
-  AddCodePage(850, CP850toUTF8RemapList);
-  AddCodePage(858, CP858toUTF8RemapList);
-  AddCodePage(857, CP857toUTF8RemapList);
-  AddCodePage(863, CP863toUTF8RemapList);
-  AddCodePage(866, CP866toUTF8RemapList);
+  AddCodepage(437, CP437toUTF8RemapList);
+  AddCodepage(850, CP850toUTF8RemapList);
+  AddCodepage(858, CP858toUTF8RemapList);
+  AddCodepage(857, CP857toUTF8RemapList);
+  AddCodepage(863, CP863toUTF8RemapList);
+  AddCodepage(866, CP866toUTF8RemapList);
 end;
 
 procedure Finalize;
 var
   I : integer;
 begin
-  for I := High(FCodePages) downto Low(FCodepages) do
+  for I := High(FCodepages) downto Low(FCodepages) do
     FreeAndNil(FCodepages[I].UTF8);
   SetLength(FCodepages, 0);
 end;

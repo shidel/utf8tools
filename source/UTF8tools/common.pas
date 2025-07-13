@@ -40,8 +40,12 @@ const
   GREATERTHAN = #$3e;
   COLON       = #$3a;
   SEMICOLON   = #$3b;
+  UNDERSCORE  = #$5f;
+  PERIOD      = #$2e;
 
   TAB2        = TAB + TAB;
+
+  SUFFIXDELIM = UNDERSCORE;
 
   MaxInteger  = MaxLongInt;
 
@@ -52,7 +56,12 @@ type
   TAsciiString = AnsiString;
   TUTF8String = AnsiString;
 
-  TConvertOpts = set of ( cvCR, cvLF, cvTAB, cvCtrlChars );
+  TConvertOpts = set of (
+    { All conversions from UTF-8 }
+    cvCR, cvLF, cvTAB, cvCtrlChars,
+    { for conversion to HTML}
+    cvHTMLCodes
+    );
 
   { TMapNode }
 
@@ -90,7 +99,8 @@ type
   published
   end;
 
-function PopDelim(var AStr : TMapString; ADelim: TMapString = #32): TMapString;
+function Percent(A, B : integer) : Integer; overload;
+function PopDelim(var AStr : TMapString; ADelim: TMapString = #32): TMapString; overload;
 procedure Explode(AStr : String; var AStrs : TStringList; ADelim : String = ','); overload;
 function Explode(AStr : String; ADelim : String = ',' ):TStringArray; overload;
 
@@ -202,6 +212,15 @@ begin
 end;
 
 { Unit functions and procedures }
+
+function Percent(A, B: integer): Integer;
+begin
+  Percent:=0;
+  if B = 0 then Exit;
+  Percent:=A * 100 div B;
+  if (Percent = 100) and (A<>B) then Percent:=99;
+  if (Percent = 0) and (A<>0) then Percent:=1;
+end;
 
 function PopDelim(var AStr: TMapString; ADelim: TMapString): TMapString;
 var
