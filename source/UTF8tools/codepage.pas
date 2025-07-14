@@ -44,6 +44,8 @@ procedure Codepages(out List : TStringArray); overload;
 { Return an array of available Codepages }
 procedure Codepages(out List : TIntArray); overload;
 
+function CodepageIndex(Codepage : Integer) :integer;
+
 { Determine if a Codepage is supported }
 function CodepageKnown(Codepage : Integer) :boolean;
 

@@ -86,7 +86,7 @@ begin
   end;
 end;
 
-function DetectLanguage(const S : TUTF8String): String; override;
+function DetectLanguage(const S : TUTF8String): String;
 var
   I : integer;
   C, R : integer;

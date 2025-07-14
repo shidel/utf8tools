@@ -311,12 +311,12 @@ procedure TUTF8Convert.UTF8toTEXT(Filename: String);
 var
   U : TUTF8String;
   R : TArrayResultsCP;
-  D, P, I : integer;
+  D, P, I, C : integer;
   Q : Integer;
+  L : String;
 begin
   if not Load(Filename, U) then Exit;
   D := UTF8toCodepage(U, R);
-  P := D;
   if D = -1 then begin
     if R[0].Errors = 0 then begin
       WriteLn(TAB, 'conversion not required.');
@@ -326,7 +326,16 @@ begin
       if Not FForced then Exit;
     end;
   end;
-  if P = -1 then P:=0;
+  L:=DetectLanguage(U);
+  C:=LanguageCodepage(L);
+  P := CodepageIndex(C);
+  if (L = '') or (C=-1) then begin
+    WriteLn(TAB, 'unable to determine language');
+  end else begin
+    WriteLn(TAB, 'appears that the text is ', L);
+    WriteLn(TAB, 'should convert to codepage ', C);
+  end;
+  if P = -1 then P:=D;
   if FReportOnly then begin
     WriteLn(TAB,'Codepage UTF-8 compatibility:');
     for I := 0 to Length(R) - 1 do begin
