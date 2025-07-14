@@ -34,14 +34,6 @@ type
 var
   LangTests : TLangTests;
 
-{$I words/English.inc}
-{$I words/German.inc}
-{$I words/French.inc}
-{$I words/Turkish.inc}
-{$I words/Swedish.inc}
-{$I words/Norwegian.inc}
-{$I words/Russian.inc}
-
 function CheckLanguage(var Map : TMapTree; const Data : String) : integer;
 const
   B : String=SPACE+'`1234567890-=[]\;,./~!@#$%^&*()_+{}:<>?"' + QUOTE+CR+LF+TAB;
@@ -128,6 +120,18 @@ begin
     LangTests[H].Map.Add(A[I]);
 end;
 
+
+{$I words/English.inc}
+{$I words/German.inc}
+{$I words/French.inc}
+{$I words/Turkish.inc}
+{$I words/Swedish.inc}
+{$I words/Norwegian.inc}
+{$I words/Russian.inc}
+{$I words/Spanish.inc}
+{$I words/Esperanto.inc}
+
+
 procedure Initialize;
 begin
   LangTests:=[];
@@ -136,6 +140,8 @@ begin
   AddLang(FrenchLanguageWords, 'French', 850);
   AddLang(TurkishLanguageWords, 'Turkish', 857);
   AddLang(SwedishLanguageWords, 'Swedish', 850);
+  AddLang(SpanishLanguageWords, 'Spanish', 850);
+  AddLang(EsperantoLanguageWords, 'Esperanto', 850);
   AddLang(NorwegianLanguageWords, 'Norwegian', 865);
   AddLang(RussianLanguageWords, 'Russian', 866);
 end;

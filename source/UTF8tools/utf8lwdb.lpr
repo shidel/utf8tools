@@ -1,3 +1,6 @@
+
+// TO-DO: Remove words that exist in multiple languages.
+
 program utf8lwdb;
 
 {$mode objfpc}{$H+}
@@ -20,6 +23,8 @@ type
     FCount : TStringList;
     FCodepage : integer;
     FNotEnglish : boolean;
+    FP : integer;
+    FAll : boolean;
     procedure DoRun; override;
   public
     constructor Create(TheOwner: TComponent); override;
@@ -36,7 +41,12 @@ type
 
 procedure TMyApplication.DoRun;
 begin
-  if ParamCount < 3 then
+  FP := 1;
+  if ParamStr(FP) = '-a' then begin
+     FAll:=True;
+     Inc(FP);
+  end;
+  if ParamCount < FP + 2 then
     WriteHelp
   else
     Main;
@@ -65,15 +75,13 @@ begin
   writeln('Usage: ', ExeName, ' Codepage LangName files...');
 end;
 
-
-
 procedure TMyApplication.Main;
 var
   I : integer;
   E : Integer;
   D : AnsiString;
 begin
-  Val(ParamStr(1), FCodePage, E);
+  Val(ParamStr(FP), FCodePage, E);
   if E <> 0 then begin
      WriteLn('Invalid codepage');
      Exit;
@@ -82,7 +90,8 @@ begin
     WriteLn('unsupported codepage');
     Exit;
   end;
-  FLang:=ParamStr(2);
+  Inc(FP);
+  FLang:=ParamStr(FP);
   FNotEnglish := LowerCase(FLang) <> 'english';
   FName := 'words/' + FLang + '.lng';
   if not FileExists(FName) then begin
@@ -90,8 +99,9 @@ begin
     Terminate(1);
     Exit;
   end;
+  Inc(FP);
   if not LoadWords then Exit;
-  for I := 3 to ParamCount do begin
+  for I := FP to ParamCount do begin
       WriteLn(ParamStr(I));
       if not LoadFile(ParamStr(I), D) then begin
         WriteLn('could not load file.');
@@ -163,6 +173,7 @@ const
 var
   P, L, M : integer;
   S, U : String;
+  R : TResultsCP;
 begin
   ScanWords:=True;
   P := 0;
@@ -176,9 +187,14 @@ begin
     if (L < 3) then Continue;
     S := Copy(Data, P, L);
     Inc(P,L);
-    CodePageToUTF8(FCodePage, S, U);
+    UTF8toCodepage(FCodePage, S, R);
+    if (R.Errors = 0) and (R.Unicode > 0) then begin
+      U:=S;
+      S:=R.ASCII;
+    end else
+      CodePageToUTF8(FCodePage, S, U);
     if FCodePage <> 437 then begin
-       if (S=U) then Continue;
+       if (S=U) and (not FAll) then Continue;
     end else
     if Lowercase(S) <> S then Continue
     else
