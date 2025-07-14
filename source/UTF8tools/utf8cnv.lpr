@@ -47,6 +47,7 @@ type
     function Load(Filename : String; out Data : AnsiString) : boolean; virtual;
     function Save(Filename : String; const Data : AnsiString) : boolean; virtual;
     function OutName(FileName, Suffix : String) : String; virtual;
+    procedure NotSupported(Filename : String);
     procedure FileText(Filename : String); virtual;
     procedure FileHTML(Filename : String); virtual;
     procedure UTF8toTEXT(Filename : String); virtual;
@@ -246,8 +247,27 @@ var
   I : integer;
 begin
   for I := 0 to FFiles.Count - 1 do begin
-    WriteLn('Processing: ', FFiles[I]);
     case LowerCase(ExtractFileExt(FFiles[I])) of
+      '.bmp', '.jpg', '.jpeg', '.jp2', '.gif', '.png', '.tiff',
+      '.wav', '.mp3', '.aac', '.voc', '.cda', '.avi', '.mp2', '.mp4',
+      '.mov', '.qt', '.ac3', '.aa', '.flac', '.img', '.iso', '.xz',
+      '.zip', '.bzip', '.bz2', '.gzip', '.gz', '.tar', '.tgz', '.tbz'
+      : begin
+        WriteLn('Ignore: ', FFiles[I]);
+        Continue;
+      end
+    else
+      WriteLn('Processing: ', FFiles[I]);
+    end;
+    case LowerCase(ExtractFileExt(FFiles[I])) of
+      '.xml', '.xhtm', '.xhtml' : begin
+        NotSupported(FFiles[I]);
+        if FForced then FileHTML(FFiles[I]);
+      end;
+      '.css' : begin
+        NotSupported(FFiles[I]);
+        if FForced then FileText(FFiles[I]);
+      end;
       '.html', '.htm' : FileHTML(FFiles[I]);
     else
       FileText(FFiles[I]);
@@ -286,6 +306,12 @@ begin
    if FOutPath <> '' then
      OutName := FOutPath + ExtractFilename(OutName);
    WriteLn(TAB, 'output file: ', OutName);
+end;
+
+procedure TUTF8Convert.NotSupported(Filename: String);
+begin
+  WriteLn(TAB, 'File type "', UpperCase(Copy(ExtractFileExt(Filename),1)),
+  '" are not supported.');
 end;
 
 procedure TUTF8Convert.FileText(Filename: String);

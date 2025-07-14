@@ -16,10 +16,9 @@ interface
 uses
   Classes, SysUtils, Common;
 
-procedure DetectLanguage(Codepage : integer; const S : TUTF8String;
-  out Lang : String;
-  out Recognized : integer); override;
 function DetectLanguage(const S : TUTF8String): String; override;
+procedure DetectLanguage(Codepage : integer; const S : TUTF8String;
+  out Lang : String; out Recognized : integer); override;
 function LanguageCodepage(S : String) : integer;
 
 implementation
