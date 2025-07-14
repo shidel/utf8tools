@@ -71,6 +71,7 @@ implementation
 {$I maps\map_857.inc}
 {$I maps\map_858.inc}
 {$I maps\map_863.inc}
+{$I maps\map_865.inc}
 {$I maps\map_866.inc}
 
 {$I maps\map_uchk.inc}
@@ -267,6 +268,7 @@ begin
   AddCodepage(858, CP858toUTF8RemapList);
   AddCodepage(857, CP857toUTF8RemapList);
   AddCodepage(863, CP863toUTF8RemapList);
+  AddCodepage(865, CP865toUTF8RemapList);
   AddCodepage(866, CP866toUTF8RemapList);
 end;
 

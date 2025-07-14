@@ -42,6 +42,8 @@ const
   SEMICOLON   = #$3b;
   UNDERSCORE  = #$5f;
   PERIOD      = #$2e;
+  QUOTE       = #$27;
+  QUOTEDOUBLE = #$22;
 
   TAB2        = TAB + TAB;
 
@@ -92,7 +94,7 @@ type
   private
   public
     property RootNode : TMapNode read FRootNode;
-    function Add(AValue, AData : TMapString) : TMapNode;
+    function Add(AValue :TMapString; AData : TMapString='') : TMapNode;
     function Find(AValue : TMapString) : TMapNode;
     function Search(AValue : TMapString; FirstMatch : boolean = false) : TMapNode;
     procedure Clear;
@@ -105,6 +107,8 @@ function Percent(A, B : integer) : Integer; overload;
 function PopDelim(var AStr : TMapString; ADelim: TMapString = #32): TMapString; overload;
 procedure Explode(AStr : String; var AStrs : TStringList; ADelim : String = ','); overload;
 function Explode(AStr : String; ADelim : String = ',' ):TStringArray; overload;
+function ZeroPad(I : integer; Width : integer) : String; overload;
+function ZeroPad(S : String; Width : integer) : String; overload;
 
 function SaveFile(AFileName: String; const AValue : AnsiString) : boolean; overload;
 function LoadFile(AFileName: String; out AValue : AnsiString) : boolean; overload;
@@ -131,7 +135,7 @@ end;
 
 { TMapTree }
 
-function TMapTree.Add(AValue, AData: TMapString): TMapNode;
+function TMapTree.Add(AValue :TMapString; AData : TMapString=''): TMapNode;
 var
   This, Last : TMapNode;
   L : integer;
@@ -257,6 +261,18 @@ begin
     Inc(I);
   end;
   SetLength(Explode, I);
+end;
+
+function ZeroPad(I: integer; Width: integer): String;
+begin
+  ZeroPad := ZeroPad(IntToStr(I), Width);
+end;
+
+function ZeroPad(S: String; Width: integer): String;
+begin
+  ZeroPad:=S;
+  While Length(ZeroPad) < Width do
+    ZeroPad:='0'+ZeroPad;
 end;
 
 {$PUSH}
