@@ -16,7 +16,8 @@ interface
 uses
   Classes, SysUtils, Common;
 
-procedure DetectLanguage(const S : TUTF8String; out Lang : String;
+procedure DetectLanguage(Codepage : integer; const S : TUTF8String;
+  out Lang : String;
   out Recognized : integer); override;
 function DetectLanguage(const S : TUTF8String): String; override;
 function LanguageCodepage(S : String) : integer;
@@ -28,7 +29,6 @@ type
     Map : TMapTree;
     Language : String;
     Codepage : Integer;
-    Count : Integer;
   end;
   TLangTests = array of TLangTest;
 
@@ -40,26 +40,79 @@ var
 {$I words/French.inc}
 {$I words/Turkish.inc}
 {$I words/Swedish.inc}
+{$I words/Norwegian.inc}
+{$I words/Russian.inc}
 
-procedure DetectLanguage(const S : TUTF8String; out Lang : String;
+function CheckLanguage(var Map : TMapTree; const Data : String) : integer;
+const
+  B : String=SPACE+'`1234567890-=[]\;,./~!@#$%^&*()_+{}:<>?"' + QUOTE+CR+LF+TAB;
+var
+  P, L, M : integer;
+  S : String;
+begin
+  CheckLanguage:=0;
+  P := 0;
+  M := Length(Data);
+  While P < M do begin
+    Inc(P);
+    While (P < M) and (Pos(Data[P], B) > 0) do Inc(P);
+    L:=1;
+    While (P+L < M) and (Pos(Data[P+L], B) < 1) do
+      Inc(L);
+    if (L < 3) then Continue;
+    S := Copy(Data, P, L);
+    Inc(P,L);
+    if Assigned(Map.Find(S)) then
+      Inc(CheckLanguage);
+  end;
+end;
+
+procedure DetectLanguage(Codepage : integer; const S : TUTF8String; out Lang : String;
   out Recognized : integer);
+var
+  I : integer;
+  C : integer;
 begin
   Lang:='';
   Recognized:=0;
+  for I := 0 to Length(LangTests) - 1 do begin
+    if Codepage <> LangTests[I].Codepage then Continue;
+    C := CheckLanguage(LangTests[I].Map, S);
+    // WriteLn(LangTests[I].Language, ': ', C);
+    if C > Recognized then begin
+      Recognized:=C;
+      Lang:=LangTests[I].Language;
+    end;
+  end;
 end;
 
 function DetectLanguage(const S : TUTF8String): String; override;
 var
-  N : String;
-  C : Integer;
+  I : integer;
+  C, R : integer;
 begin
-  DetectLanguage(S, N, C);
-  DetectLanguage:=N;
+  DetectLanguage:='';
+  R:=0;
+  for I := 0 to Length(LangTests) - 1 do begin
+    C := CheckLanguage(LangTests[I].Map, S);
+    if C > R then begin
+      R:=C;
+      DetectLanguage:=LangTests[I].Language;
+    end;
+  end;
 end;
 
 function LanguageCodepage(S : String) : integer;
+var
+  I : integer;
 begin
+  S := Trim(Uppercase(S));
   LanguageCodepage:=-1;
+  for I := 0 to Length(LangTests) - 1 do
+    if Uppercase(LangTests[I].Language) = S then begin
+      LanguageCodepage:=LangTests[I].Codepage;
+      Break;
+    end;
 end;
 
 procedure AddLang(const A : TStringArray; Lang : String; CP : Integer);
@@ -84,6 +137,8 @@ begin
   AddLang(FrenchLanguageWords, 'French', 850);
   AddLang(TurkishLanguageWords, 'Turkish', 857);
   AddLang(SwedishLanguageWords, 'Swedish', 850);
+  AddLang(NorwegianLanguageWords, 'Norwegian', 865);
+  AddLang(RussianLanguageWords, 'Russian', 866);
 end;
 
 procedure Finalize;

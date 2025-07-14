@@ -412,7 +412,7 @@ begin
   for I := 0 to Length(C) - 1 do begin
     CodepageToUTF8(C[I], A, U[I], FOptions);
     if C[I] = FCodePage then TP := I;
-    DetectLanguage(U[I], TL, TW);
+    DetectLanguage(C[I], U[I], TL, TW);
     if TW > W then begin
       L:=TL;
       W:=TW;
@@ -423,17 +423,20 @@ begin
     WriteLn(TAB, 'warning: unable to detect codepage');
     P := 0;
   end
-  else
-    WriteLn(TAB, 'probably converting from codepage ', C[P]);
+  else begin
+    WriteLn(TAB, 'appears that the text is ', L);
+    WriteLn(TAB, 'should convert from codepage ', C[P]);
+  end;
 
   if (TP <> -1) and (TP <> P) then begin
     P := TP;
-    WriteLn(TAB, 'warning: convert using codepage ', C[P]);
+    WriteLn(TAB, 'warning: convert from codepage ', C[P]);
   end;
   if not NeedSaved(A, U[P]) then Exit;
   Filename:=OutName(FileName, 'utf8');
   if FileExists(Filename) then
     if DontOverwrite then Exit;
+  if FReportOnly then Exit;
   Save(Filename, A);
 end;
 
