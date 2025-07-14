@@ -79,7 +79,6 @@ begin
             'w' : FOverwrite:=True;
             't' : FReportOnly:=True;
             'x' : FHTMLCodes:=True;
-            'e' : FHTMLCodes:=False;
             'u' : FToUTF8:=True;
             'f' : FForced:=True;
             'n' : FNoSuffix:=True;
@@ -168,18 +167,16 @@ begin
   WriteLn('  ', CommandSwitch, 'n', TAB2, 'do not append conversion suffix');
   WriteLn('  ', CommandSwitch, 'o path', TAB, 'designate output path');
   WriteLn;
-  WriteLn('  ', CommandSwitch, 'x', TAB2, 'HTML, prefer value codes');
-  WriteLn('  ', CommandSwitch, 'e', TAB2, 'HTML, prefer entity names (default)');
-  WriteLn;
   WriteLn('  ', CommandSwitch, 'u', TAB2, 'convert to UTF-8 instead of from');
   WriteLn;
-  WriteLn('  ', CommandSwitch, 'c id', TAB2, 'specify a specific code page');
+  WriteLn('Options which are usually not needed or recommended:');
   WriteLn;
-  WriteLn('The followng options are generally not recommended:');
+  WriteLn('  ', CommandSwitch, 'c id', TAB2, 'use a specific code page');
   WriteLn;
-  WriteLn('  ', CommandSwitch, 'f', TAB2, 'force conversion');
+  WriteLn('  ', CommandSwitch, 'f', TAB2, 'force conversion regardless');
   WriteLn('  ', CommandSwitch, 'k', TAB2, 'convert control codes');
-  WriteLn('  ', CommandSwitch, 'j', TAB2, 'HTML as plain text');
+  WriteLn('  ', CommandSwitch, 'x', TAB2, 'HTML, use values instead of entities');
+  WriteLn('  ', CommandSwitch, 'j', TAB2, 'HTML, as plain text');
   WriteLn;
   WriteLn('Available code pages: ', Codepages);
   Terminate;
@@ -336,6 +333,7 @@ begin
     WriteLn(TAB, 'should convert to codepage ', C);
   end;
   if P = -1 then P:=D;
+  if P = -1 then P:=0;
   if FReportOnly then begin
     WriteLn(TAB,'Codepage UTF-8 compatibility:');
     for I := 0 to Length(R) - 1 do begin
