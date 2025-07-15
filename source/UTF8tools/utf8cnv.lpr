@@ -15,6 +15,8 @@ uses
 
 type
 
+  TOnSubString = function (S : String) : String of object;
+
   { TUTF8Convert }
 
   TUTF8Convert = class(TCustomApplication)
@@ -32,8 +34,12 @@ type
     FNoSuffix: boolean;
     FForced: boolean;
     FOptions:TConvertOpts;
+    FOnSubStr : TOnSubString;
+
   protected
     procedure DoRun; override;
+    function OnToHTML (S : String) : string;
+    function OnToUTF8 (S : String) : string;
   public
     constructor Create(TheOwner: TComponent); override;
     destructor Destroy; override;
@@ -51,9 +57,9 @@ type
     procedure FileText(Filename : String); virtual;
     procedure FileHTML(Filename : String); virtual;
     procedure UTF8toTEXT(Filename : String); virtual;
-    procedure UTF8toHTML(Filename : String); virtual;
-    procedure HTMLtoUTF8(Filename : String); virtual;
     procedure TEXTtoUTF8(Filename : String); virtual;
+    function HTMLtextOnly(const S : String) : String; virtual;
+    function PromoteUTF8(var Data : String) : boolean; virtual;
   end;
 
 { TUTF8Convert }
@@ -124,6 +130,7 @@ begin
       end;
     end; {param}
   end;
+  FOptions:=FOptions + [cvPunctuation];
   if FControlCodes then
     FOptions:=FOptions + [cvCtrlChars];
   if FHTMLCodes then
@@ -132,6 +139,16 @@ begin
   if not Terminated then ProcessFiles;
   // stop program loop
   Terminate;
+end;
+
+function TUTF8Convert.OnToHTML(S: String): string;
+begin
+  OnToHTML:=UTF8toHTML(S, FOptions);
+end;
+
+function TUTF8Convert.OnToUTF8(S: String): string;
+begin
+  OnToUTF8:=HTMLtoUTF8(S);
 end;
 
 constructor TUTF8Convert.Create(TheOwner: TComponent);
@@ -262,13 +279,23 @@ begin
     case LowerCase(ExtractFileExt(FFiles[I])) of
       '.xml', '.xhtm', '.xhtml' : begin
         NotSupported(FFiles[I]);
-        if FForced then FileHTML(FFiles[I]);
+        if FForced then begin
+          if FHTMLasText then
+            FileText(FFiles[I])
+          else
+            FileHTML(FFiles[I]);
+        end;
       end;
       '.css' : begin
         NotSupported(FFiles[I]);
         if FForced then FileText(FFiles[I]);
       end;
-      '.html', '.htm' : FileHTML(FFiles[I]);
+      '.html', '.htm' : begin
+        if FHTMLasText then
+          FileText(FFiles[I])
+        else
+          FileHTML(FFiles[I]);
+      end;
     else
       FileText(FFiles[I]);
     end;
@@ -323,11 +350,51 @@ begin
 end;
 
 procedure TUTF8Convert.FileHTML(Filename: String);
+var
+  S, D: TUTF8String;
+  L, P : integer;
+  T : String;
 begin
+  if not Load(FileName,S) then Exit;
+  if not PromoteUTF8(S) then Exit;
   if FToUTF8 then
-    HTMLtoUTF8(Filename)
+    FOnSubStr:=@OnToUTF8
   else
-    UTF8toHTML(Filename)
+    FOnSubStr:=@OnToHTML;
+
+  { update the HTML text }
+  D:='';
+  T:= '';
+  L := 1;
+  repeat
+    case Copy(S, L, 1) of
+      CR, LF : begin
+        P := L;
+        D:=D+Copy(S,P,1);
+      end
+    else
+      P := Pos('<', S, L);
+      if P = 0 then P := Length(S);
+      if Lowercase(T) <> '<style>' then
+        D:=D+FOnSubStr(Copy(S, L, P - L))
+      else
+        D:=D+Copy(S, L, P - L);
+      L:=P + 1;
+      P := Pos('>', S, L);
+      if P = 0 then P := Length(S);
+      T:=Copy(S, L-1, P - L +2);
+      D:=D+T;
+    end;
+    L:=P + 1;
+  until P >= Length(S);
+
+  { compare and save }
+  if not NeedSaved(S, D) then Exit;
+  Filename:=OutName(FileName, 'new');
+  if FileExists(Filename) then
+    if DontOverwrite then Exit;
+  if FReportOnly then Exit;
+  Save(Filename, D);
 end;
 
 procedure TUTF8Convert.UTF8toTEXT(Filename: String);
@@ -473,14 +540,91 @@ begin
   Save(Filename, A);
 end;
 
-procedure TUTF8Convert.UTF8toHTML(Filename: String);
+function TUTF8Convert.HTMLtextOnly(const S : String): String;
+var
+  L, P : integer;
+  T : String;
 begin
-
+  // WriteLn(Remapper.Levels);
+  HTMLtextOnly:='';
+  T:= '';
+  L := 1;
+  repeat
+    case Copy(S, L, 1) of
+      CR, LF : begin
+        P := L;
+        HTMLtextOnly:=HTMLtextOnly+Copy(S,P,1);
+      end
+    else
+      P := Pos('<', S, L);
+      if P = 0 then P := Length(S);
+      if Lowercase(T) <> '<style>' then
+        HTMLtextOnly:=HTMLtextOnly+Copy(S, L, P - L);
+      L:=P + 1;
+      P := Pos('>', S, L);
+      if P = 0 then P := Length(S);
+      T:=Copy(S, L-1, P - L +2);
+    end;
+    L:=P + 1;
+  until P >= Length(S);
 end;
 
-procedure TUTF8Convert.HTMLtoUTF8(Filename: String);
+function TUTF8Convert.PromoteUTF8(var Data: String) : boolean;
+var
+  R : TResultsCP;
+  C : TIntArray;
+  U : array of TUTF8String;
+  I : Integer;
+  P, TP : Integer;
+  L, TL : String;
+  W, TW : integer;
+  H, X : TUTF8String;
 begin
+  U:=[];
+  PromoteUTF8:=True;
+  Codepages(C);
+  H:=HtmltextOnly(Data);
+  UTF8toCodepage(437,H,R);
+  { Same as either Unicode or ASCII }
+  if (R.Unicode = 0) and (R.Errors = 0) then Exit;
+  { Already Unicode }
+  if (R.Unicode > 0) and (R.Errors = 0) then Exit;
+  { Convert to UTF-8 }
+  PromoteUTF8:=False;
+  WriteLn(TAB, 'warning: not UTF-8 encoded');
+  W := 0;
+  L := '';
+  P := -1;
+  TP := -1;
+  SetLength(U, Length(C));
+  for I := 0 to Length(C) - 1 do begin
+    CodepageToUTF8(C[I], Data, U[I], FOptions);
+    CodepageToUTF8(C[I], H, X, FOptions);
+    if C[I] = FCodePage then TP := I;
+    DetectLanguage(C[I], X, TL, TW);
+    if TW > W then begin
+      L:=TL;
+      W:=TW;
+      P:=I;
+    end;
+  end;
+  if P = -1 then begin
+    WriteLn(TAB, 'warning: unable to detect codepage');
+    P := 0;
+  end
+  else begin
+    WriteLn(TAB, 'appears that the text is ', L);
+    WriteLn(TAB, 'should convert from codepage ', C[P]);
+  end;
 
+  if (TP <> -1) and (TP <> P) then begin
+    P := TP;
+    WriteLn(TAB, 'warning: convert from codepage ', C[P]);
+  end;
+
+  { Return Data as UTF-8 that best matched a codepage }
+  Data:=U[P];
+  PromoteUTF8:=True;
 end;
 
 var

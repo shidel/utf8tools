@@ -62,7 +62,7 @@ type
     { All conversions from UTF-8 }
     cvCR, cvLF, cvTAB, cvCtrlChars,
     { for conversion to HTML}
-    cvHTMLCodes
+    cvHTMLCodes, cvAmpersand, cvPunctuation
     );
 
   { TMapNode }
