@@ -44,10 +44,11 @@ const
   PERIOD      = #$2e;
   QUOTE       = #$27;
   QUOTEDOUBLE = #$22;
+  HYPHEN      = #$2d;
 
   TAB2        = TAB + TAB;
 
-  SUFFIXDELIM = UNDERSCORE;
+  SUFFIXDELIM = PERIOD; { UNDERSCORE; HYPHEN; }
 
   MaxInteger  = MaxLongInt;
 

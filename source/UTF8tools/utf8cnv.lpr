@@ -328,8 +328,10 @@ end;
 function TUTF8Convert.OutName(FileName, Suffix: String): String;
 begin
   OutName := Filename;
-   if not FNoSuffix then
-     OutName := OutName + SUFFIXDELIM + Suffix;
+   if not FNoSuffix then begin
+     OutName:=Copy(OutName, 1, Length(OutName) - Length(ExtractFileExt(OutName))) +
+     SUFFIXDELIM + Suffix + ExtractFileExt(OutName);
+   end;
    if FOutPath <> '' then
      OutName := FOutPath + ExtractFilename(OutName);
    WriteLn(TAB, 'output file: ', OutName);
