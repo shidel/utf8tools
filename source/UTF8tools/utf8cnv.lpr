@@ -540,7 +540,7 @@ begin
   if FileExists(Filename) then
     if DontOverwrite then Exit;
   if FReportOnly then Exit;
-  Save(Filename, A);
+  Save(Filename, U[P]);
 end;
 
 function TUTF8Convert.HTMLtextOnly(const S : String): String;

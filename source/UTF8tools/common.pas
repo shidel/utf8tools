@@ -112,13 +112,13 @@ type
 
 function Percent(A, B : integer) : Integer; overload;
 function PopDelim(var AStr : TMapString; ADelim: TMapString = #32): TMapString; overload;
-procedure Explode(AStr : String; var AStrs : TStringList; ADelim : String = ','); overload;
-function Explode(AStr : String; ADelim : String = ',' ):TStringArray; overload;
-function ZeroPad(I : integer; Width : integer) : String; overload;
-function ZeroPad(S : String; Width : integer) : String; overload;
+procedure Explode(AStr : TMapString; var AStrs : TStringList; ADelim : String = ','); overload;
+function Explode(AStr : TMapString; ADelim : TMapString = ',' ):TStringArray; overload;
+function ZeroPad(I : integer; Width : integer) : TMapString; overload;
+function ZeroPad(S : TMapString; Width : integer) : TMapString; overload;
 
-function SaveFile(AFileName: String; const AValue : AnsiString) : boolean; overload;
-function LoadFile(AFileName: String; out AValue : AnsiString) : boolean; overload;
+function SaveFile(AFileName: String; const AValue : TMapString) : boolean; overload;
+function LoadFile(AFileName: String; out AValue : TMapString) : boolean; overload;
 
 implementation
 
