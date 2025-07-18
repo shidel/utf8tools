@@ -148,7 +148,7 @@ end;
 
 function TUTF8Convert.OnToUTF8(S: String): string;
 begin
-  OnToUTF8:=HTMLtoUTF8(S);
+  OnToUTF8:=HTMLtoUTF8(S, FOptions);
 end;
 
 constructor TUTF8Convert.Create(TheOwner: TComponent);
@@ -390,6 +390,7 @@ begin
     L:=P + 1;
   until P >= Length(S);
 
+  // Exit;
   { compare and save }
   if not NeedSaved(S, D) then Exit;
   Filename:=OutName(FileName, 'new');

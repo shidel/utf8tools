@@ -18,7 +18,8 @@ uses Classes, SysUtils, Common, Unicode;
 function UTF8toHTML( const U : TUTF8String; Options : TConvertOpts = [] )
   : TUTF8String;
 
-function HTMLtoUTF8( const H : TUTF8String ) : TUTF8String;
+function HTMLtoUTF8( const H : TUTF8String; Options : TConvertOpts = [] )
+  : TUTF8String;
 
 implementation
 
@@ -35,9 +36,54 @@ begin
   UTF8toHTML:=U;
 end;
 
-function HTMLtoUTF8( const H : TUTF8String ) : TUTF8String;
+function HTMLtoUTF8( const H : TUTF8String; Options : TConvertOpts = [] ) : TUTF8String;
+var
+  Node : TMapNode;
+  P, A, N : Integer;
+  T, X : String;
 begin
-  HTMLtoUTF8:=H;
+  HTMLtoUTF8:='';
+  P:=1;
+  While P <= Length(H) do begin
+    T:=Copy(H, P, 1);
+    if (T = '&') then begin
+      A := Pos(';', H, P);
+      N := Pos(SPACE, H, P) - 1;
+      if A = 0 then A := Length(H);
+      if (N > 0) and (N <A) then A := N;
+      T:=Copy(H, P, A - P + 1);
+      P:=A;
+      // if T='&' then T:='&amp;'; { fix broken & }
+    end;
+    Inc(P);
+    if Length(T) > 1 then begin
+      X:='';
+      if Copy(T,1,2) = '&#' then begin
+        Val(Copy(T, 3, Length(T) - 3), N, A);
+        if A = 0 then
+          ValueToCodePoint(N, X);
+      end else begin
+        Node := FHTML.Find(T);
+        if Assigned(Node) then X:=Node.Data;
+      end;
+
+      { check on don't covert stuff }
+      { no double unicode chars are in any of the don't convert }
+      if (Length(X) = 1) then begin
+        N:=Ord(X[1]);
+        if (N=38) or (N=60) or (N=62) then begin
+          { < > & }
+          if not (cvHTMLCtrl in Options) then X:='';
+        end else if (N<128) then begin
+          { General Punctuation and Symbols }
+          if not (cvPunctuation in Options) then X:='';
+        end;
+      end;
+      { So if we still got X, whatever it was, it should be replaced }
+      if X <> '' then T:=X;
+    end;
+    HTMLtoUTF8:=HTMLtoUTF8+T;
+  end;
 end;
 
 function Encode(var H : TMapString; U : TMapString) : TUTF8CodePoint;

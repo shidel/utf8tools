@@ -60,10 +60,16 @@ type
   TUTF8String = AnsiString;
 
   TConvertOpts = set of (
-    { All conversions from UTF-8 }
-    cvCR, cvLF, cvTAB, cvCtrlChars,
-    { for conversion to HTML}
-    cvHTMLCodes, cvAmpersand, cvPunctuation
+    { All conversions from UTF-8 to/from ASCII }
+    cvCR, cvLF, cvTAB,     { really never should be enabled }
+    { Basic other cotrol codes for conversions }
+    cvCtrlChars,           { mostly safe in ASCII, but are meant to represent
+                           direct to display characters. Not standard output
+                           behaviour/characters. }
+
+    { for conversion to & from HTML}
+    cvHTMLCodes, cvPunctuation,
+    cvHTMLCtrl             { don't ever turn this on, coverts < > & chars }
     );
 
   { TMapNode }
