@@ -30,10 +30,84 @@ var
   FHTML,
   FUTF8 : TMapTree;
 
-function UTF8toHTML( const U : TUTF8String; Options : TConvertOpts = [] )
-  : TUTF8String;
+function HTMLCode (T:String) : String;
+var
+  S : String;
+  V, E : Integer;
 begin
-  UTF8toHTML:=U;
+  HTMLCode:='';
+  CodePointToInts(T, S);
+  while S <> '' do begin
+    T:=PopDelim(S, ',');
+    Val(T, V, E);
+    if E <> 0 then Continue;
+    if V < 999 then
+      T := IntToStr(V)
+    else begin
+      T := HexStr(V, 6);
+      While (T[1] = '0') do delete(T, 1,1);
+      T:='x'+T;
+    end;
+    HTMLCode:=HTMLCode + '&#' + T + ';';
+  end;
+end;
+
+function GetHTMLCode(T : string; Options : TConvertOpts) : String;
+var
+  N : TMapNode;
+begin
+  GetHTMLCode:=T;
+  if (T = SPACE) or (T='') then
+    Exit;
+  N:=FUTF8.Find(T);
+  if Assigned(N) then begin
+    if cvHTMLCodes in Options then
+      GetHTMLCode:=HTMLCode(T)
+    else
+      GetHTMLCode:=N.Data;
+  end
+  else if (Length(T) > 1) or (T[1] > #127) then
+    GetHTMLCode:=HTMLCode(T);
+end;
+
+function UTF8toHTML(const U : TUTF8String; Options : TConvertOpts = [] )
+  : TUTF8String;
+var
+  P, L, A, N  : Integer;
+  T, X : String;
+begin
+  UTF8toHTML:='';
+  P := 1;
+  While P <= Length(U) do begin
+    X:='';
+    L:=CodePointLength(Copy(U, P, 4)); // 1 to 4 bytes of string
+    if L < 1 then L := 1;
+    T:=Copy(U, P, L);
+    Inc(P,L);
+    if (T = '&') then begin
+      Dec(P);
+      A := Pos(';', U, P);
+      N := Pos(SPACE, U, P) - 1;
+      if A = 0 then A := Length(U);
+      if (N > 0) and (N <A) then A := N;
+      T:=Copy(U, P, A - P + 1);
+      P:=A + 1;
+      // if T='&' then T:='&amp;'; { fix broken & }
+    end else
+    if (L=1) and (T[1] < #128) then begin
+      if (T = '&') then begin
+        if (cvHTMLCtrl in Options) then
+          X:=GetHTMLCode(T, Options);
+      end else if (cvPunctuation in Options) then begin
+         X:=GetHTMLCode(T, Options);
+      end;
+    end else
+      X:=GetHTMLCode(T, Options);
+    if X <> '' then
+      UTF8toHTML:=UTF8toHTML+X
+    else
+      UTF8toHTML:=UTF8toHTML+T;
+  end;
 end;
 
 function HTMLtoUTF8( const H : TUTF8String; Options : TConvertOpts = [] ) : TUTF8String;
