@@ -11,6 +11,9 @@ uses
   {$ENDIF}
   Classes, SysUtils, CustApp, Common, Unicode, Codepage;
 
+const
+  WordPath = 'words/';
+
 type
 
   { TMyApplication }
@@ -19,6 +22,7 @@ type
   protected
     FLang : String;
     FName : String;
+    FExclude : TStringList;
     FWords : TStringList;
     FCount : TStringList;
     FCodepage : integer;
@@ -35,6 +39,8 @@ type
     function SaveWords : boolean;
     function ScanWords(const Data : String) : boolean;
     procedure PlusWord(S : String);
+    procedure PruneWords;
+    procedure CompareWords;
   end;
 
 { TMyApplication }
@@ -46,10 +52,14 @@ begin
      FAll:=True;
      Inc(FP);
   end;
+  if ParamStr(FP) = '-p' then
+     PruneWords
+  else
   if ParamCount < FP + 2 then
     WriteHelp
   else
     Main;
+
   // stop program loop
   Terminate;
 end;
@@ -58,14 +68,20 @@ constructor TMyApplication.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
   StopOnException:=True;
+  FExclude:=TStringList.Create;
+  FExclude.Duplicates:=dupIgnore;
+  FExclude.Sorted:=True;
   FWords := TStringList.Create;
   FCount:= TStringList.Create;
+  FExclude.LoadFromFile(WordPath + 'Exclude.lst', true);
 end;
 
 destructor TMyApplication.Destroy;
 begin
+  FExclude.SaveToFile(WordPath + 'Exclude.lst', true);
   FCount.Free;
   FWords.Free;
+  FExclude.Free;
   inherited Destroy;
 end;
 
@@ -93,7 +109,7 @@ begin
   Inc(FP);
   FLang:=ParamStr(FP);
   FNotEnglish := LowerCase(FLang) <> 'english';
-  FName := 'words/' + FLang + '.lng';
+  FName := WordPath + FLang + '.lng';
   if not FileExists(FName) then begin
     WriteLn('file not found: ', FName);
     Terminate(1);
@@ -118,6 +134,8 @@ var
   I: integer;
   W, C : String;
 begin
+  FWords.Clear;
+  FCount.Clear;
   LoadWords:=False;
   T := TStringList.Create;
   T.LoadFromFile(FName);
@@ -162,7 +180,7 @@ begin
     if I > 0 then L := L + ', '
   end;
   S := S + TrimRight(L) + LF + '  );' + LF;
-  SaveFile('words/' + FLang + '.inc', S);
+  SaveFile(WordPath + FLang + '.inc', S);
   T.Free;
   SaveWords:=True;
 end;
@@ -225,6 +243,40 @@ begin
        FCount[I]:=ZeroPad(V,12);
     end;
   end;
+end;
+
+procedure TMyApplication.PruneWords;
+var
+  S : TSearchRec;
+  R : integer;
+begin
+  R := FindFirst(WordPath + '*.lng', faAnyFile, S);
+  While R = 0 do begin
+    WriteLn(S.Name);
+    FName:=WordPath + S.Name;
+    if not LoadWords then Exit;
+    CompareWords;
+    if not SaveWords then Exit;
+    R := FindNext(S);
+  end;
+  FindClose(S);
+end;
+
+procedure TMyApplication.CompareWords;
+var
+  S : TSearchRec;
+  R : integer;
+  N : String;
+begin
+  R := FindFirst(WordPath + '*.lng', faAnyFile, S);
+  While R = 0 do begin
+    N:=WordPath + S.Name;
+    R := FindNext(S);
+    if N = FName then Continue;
+    Write(N, ' ');
+  end;
+  WriteLn;
+  FindClose(S);
 end;
 
 var

@@ -54,7 +54,7 @@ begin
     S := Copy(Data, P, L);
     Inc(P,L);
     if Assigned(Map.Find(S)) then
-      Inc(CheckLanguage);
+      Inc(CheckLanguage, L);
   end;
 end;
 
