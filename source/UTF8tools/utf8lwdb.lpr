@@ -254,6 +254,7 @@ begin
   R := FindFirst(WordPath + '*.lng', faAnyFile, S);
   While R = 0 do begin
     WriteLn(S.Name);
+    FLang:=S.Name;
     FName:=WordPath + S.Name;
     if not LoadWords then Exit;
     for I := 0 to FExclude.Count - 1 do begin
