@@ -249,12 +249,20 @@ procedure TMyApplication.PruneWords;
 var
   S : TSearchRec;
   R : integer;
+  I, X : integer;
 begin
   R := FindFirst(WordPath + '*.lng', faAnyFile, S);
   While R = 0 do begin
     WriteLn(S.Name);
     FName:=WordPath + S.Name;
     if not LoadWords then Exit;
+    for I := 0 to FExclude.Count - 1 do begin
+      X:=FWords.IndexOf(FExclude[I]);
+      if X < 0 then Continue;
+      FWords.Delete(X);
+      FCount.Delete(X);
+      WriteLn(TAB, TAB, FExclude[I]);
+    end;
     CompareWords;
     if not SaveWords then Exit;
     R := FindNext(S);
@@ -267,15 +275,30 @@ var
   S : TSearchRec;
   R : integer;
   N : String;
+  O : TStringList;
+  I, X : integer;
+  W : String;
 begin
   R := FindFirst(WordPath + '*.lng', faAnyFile, S);
   While R = 0 do begin
     N:=WordPath + S.Name;
     R := FindNext(S);
     if N = FName then Continue;
-    Write(N, ' ');
+    WriteLn(TAB, ExtractFileName(N));
+    O := TStringList.Create;
+    O.LoadFromFile(N,True);
+    for I := 0 to O.Count - 1 do begin
+      W:=O[I];
+      PopDelim(W, ',');
+      X := FWords.IndexOf(W);
+      if X < 0 then Continue;
+      FExclude.Add(W);
+      FWords.Delete(X);
+      FCount.Delete(X);
+      WriteLn(TAB,TAB,W);
+    end;
+    O.Free;
   end;
-  WriteLn;
   FindClose(S);
 end;
 

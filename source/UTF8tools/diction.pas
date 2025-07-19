@@ -139,7 +139,7 @@ begin
   AddLang(GermanLanguageWords, 'German', 850);
   AddLang(FrenchLanguageWords, 'French', 850);
   AddLang(TurkishLanguageWords, 'Turkish', 857);
-  AddLang(SwedishLanguageWords, 'Swedish', 850);
+  AddLang(SwedishLanguageWords, 'Swedish', 865);
   AddLang(SpanishLanguageWords, 'Spanish', 850);
   AddLang(EsperantoLanguageWords, 'Esperanto', 850);
   AddLang(NorwegianLanguageWords, 'Norwegian', 865);
