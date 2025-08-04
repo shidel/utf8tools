@@ -35,6 +35,7 @@ type
     FForced: boolean;
     FOptions:TConvertOpts;
     FOnSubStr : TOnSubString;
+    FDetectLangOnly : boolean;
 
   protected
     procedure DoRun; override;
@@ -60,6 +61,8 @@ type
     procedure TEXTtoUTF8(Filename : String); virtual;
     function HTMLtextOnly(const S : String) : String; virtual;
     function PromoteUTF8(var Data : String) : boolean; virtual;
+    procedure DetectText(Filename:String); virtual;
+    procedure DetectHTML(Filename:String); virtual;
   end;
 
 { TUTF8Convert }
@@ -85,6 +88,7 @@ begin
             's' : FSaveAnyway:=True;
             'w' : FOverwrite:=True;
             't' : FReportOnly:=True;
+            'd' : FDetectLangOnly:=True;
             'x' : FHTMLCodes:=True;
             'u' : FToUTF8:=True;
             'f' : FForced:=True;
@@ -180,6 +184,7 @@ begin
   WriteLn('  ', CommandSwitch, 'h', TAB2, 'display help text');
   WriteLn;
   WriteLn('  ', CommandSwitch, 't', TAB2, 'test, report only');
+  WriteLn('  ', CommandSwitch, 'd', TAB2, 'detect language only');
   WriteLn('  ', CommandSwitch, 's', TAB2, 'save even if not modified');
   WriteLn('  ', CommandSwitch, 'w', TAB2, 'overwrite existing files');
   WriteLn('  ', CommandSwitch, 'n', TAB2, 'do not append conversion suffix');
@@ -197,6 +202,7 @@ begin
   WriteLn('  ', CommandSwitch, 'j', TAB2, 'HTML, as plain text');
   WriteLn;
   WriteLn('Available code pages: ', Codepages);
+  WriteLn(Length(DetectableLanguages), ' known languages.');
   Terminate;
 end;
 
@@ -345,6 +351,10 @@ end;
 
 procedure TUTF8Convert.FileText(Filename: String);
 begin
+  if FDetectLangOnly then begin
+    DetectText(Filename);
+    Exit;
+  end;
   if FToUTF8 then
     TEXTtoUTF8(Filename)
   else
@@ -357,6 +367,10 @@ var
   L, P : integer;
   T : String;
 begin
+  if FDetectLangOnly then begin
+    DetectHTML(Filename);
+    Exit;
+  end;
   if not Load(FileName,S) then Exit;
   if not PromoteUTF8(S) then Exit;
   if FToUTF8 then
@@ -628,6 +642,16 @@ begin
   { Return Data as UTF-8 that best matched a codepage }
   Data:=U[P];
   PromoteUTF8:=True;
+end;
+
+procedure TUTF8Convert.DetectText(Filename: String);
+begin
+
+end;
+
+procedure TUTF8Convert.DetectHTML(Filename: String);
+begin
+
 end;
 
 var

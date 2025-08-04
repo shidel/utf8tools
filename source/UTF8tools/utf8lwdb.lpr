@@ -29,6 +29,7 @@ type
     FNotEnglish : boolean;
     FP : integer;
     FAll : boolean;
+    FNoValidate : boolean;
     procedure DoRun; override;
   public
     constructor Create(TheOwner: TComponent); override;
@@ -50,6 +51,10 @@ begin
   FP := 1;
   if ParamStr(FP) = '-a' then begin
      FAll:=True;
+     Inc(FP);
+  end;
+  if ParamStr(FP) = '-n' then begin
+     FNoValidate:=True;
      Inc(FP);
   end;
   if ParamStr(FP) = '-p' then
@@ -88,7 +93,12 @@ end;
 procedure TMyApplication.WriteHelp;
 begin
   { add your help code here }
-  writeln('Usage: ', ExeName, ' Codepage LangName files...');
+  writeln('Usage: ', 'utf8lwdb',  ' [options] codepage LangName files...');
+  writeln;
+  writeln(' -a    Include words that do not require unicode characters');
+  writeln(' -n    Do not validate codepage or unicode characters.');
+  writeLn(' -p    Prune cross language words');
+  Terminate;
 end;
 
 procedure TMyApplication.Main;
@@ -104,7 +114,7 @@ begin
   end;
   if CodePageKnown(FCodepage) = false then begin
     WriteLn('unsupported codepage');
-    Exit;
+    if not FNoValidate then Exit;
   end;
   Inc(FP);
   FLang:=ParamStr(FP);
@@ -166,7 +176,8 @@ begin
   for I := T.Count - 1 downto 0 do
     S := S + T[I] + LF;
   SaveFile(FName, S);
-  S := 'const' + LF + '  ' + FLang + 'LanguageWords : TStringArray = (' + LF;
+  S := 'const' + LF + '  ' + StringReplace(FLang, '-', '', [rfReplaceAll]) +
+    'LanguageWords : TStringArray = (' + LF;
   L := '    ';
   for I := T.Count - 1 downto 0 do begin
     W:=T[I];
@@ -205,18 +216,23 @@ begin
     if (L < 3) then Continue;
     S := Copy(Data, P, L);
     Inc(P,L);
-    UTF8toCodepage(FCodePage, S, R);
-    if (R.Errors = 0) and (R.Unicode > 0) then begin
+    if (FNoValidate) then begin
+      if L < 4 then Continue;
       U:=S;
-      S:=R.ASCII;
-    end else
-      CodePageToUTF8(FCodePage, S, U);
-    if FCodePage <> 437 then begin
-       if (S=U) and (not FAll) then Continue;
-    end else
-    if Lowercase(S) <> S then Continue
-    else
-    if L < 4 then Continue;
+    end else begin
+      UTF8toCodepage(FCodePage, S, R);
+      if (R.Errors = 0) and (R.Unicode > 0) then begin
+        U:=S;
+        S:=R.ASCII;
+      end else
+        CodePageToUTF8(FCodePage, S, U);
+      if FCodePage <> 437 then begin
+         if (S=U) and (not FAll) then Continue;
+      end else
+      if Lowercase(S) <> S then Continue
+      else
+      if L < 4 then Continue;
+    end;
     WriteLn(U);
     PlusWord(U);
   end;
@@ -254,7 +270,7 @@ begin
   R := FindFirst(WordPath + '*.lng', faAnyFile, S);
   While R = 0 do begin
     WriteLn(S.Name);
-    FLang:=S.Name;
+    FLang:=ChangeFileExt(S.Name,'');
     FName:=WordPath + S.Name;
     if not LoadWords then Exit;
     for I := 0 to FExclude.Count - 1 do begin
