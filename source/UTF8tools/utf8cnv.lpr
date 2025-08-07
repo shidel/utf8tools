@@ -5,13 +5,13 @@
 
 program utf8cnv;
 
-{$mode objfpc}{$H+}
+{$I defines.pp}
 
 uses
-  {$IFDEF UNIX}
-  cthreads,
-  {$ENDIF}
-  Classes, SysUtils, CustApp, Common, Unicode, Codepage, Remapper, Diction;
+  {$IFDEF USES_CWSTRING} cwstring, {$ENDIF}
+  {$IFDEF UNIX} cthreads, {$ENDIF}
+  Classes, SysUtils, CustApp, Common;
+  // Unicode, Codepage, Remapper, Diction;
 
 type
 
