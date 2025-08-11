@@ -10,10 +10,18 @@ uses
   {$IFDEF UNIX} cthreads, {$ENDIF}
   Classes, SysUtils, CustApp, Common;
 
+{ DEFINE SAVE_SORTED} (* for saving inc files sorted in alpha or binary mode *)
+{$DEFINE BIG_LANG}    (* generate a single large language detection include *)
+
 const
-  LangPath  = 'langs/';
-  WordPath  = 'words/';
-  Threshold = 5;
+  {$IFNDEF BIG_LANG}
+  LangPath    = 'langs/';
+  {$ENDIF}
+  WordPath    = 'words/';
+  Threshold   = 5;
+  DiscardOver = 40;
+  MaximumInc  = 200000;
+
 
 type
 
@@ -21,12 +29,14 @@ type
 
   TMyApplication = class(TCustomApplication)
   protected
-    FUbar    : Boolean;
-    FExclude : TMapTree;
-    FLang    : String;
-    FLangID  : Integer;
-    FNames   : TStringArray;
-    FWords   : TMapTree;
+    FUbar     : Boolean;
+    FExclude  : TMapTree;
+    FLang     : String;
+    FLangID   : Integer;
+    FNames    : TStringArray;
+    FModified : TBooleanArray;
+    FWords    : TMapTree;
+    FEnglish  : boolean;
     procedure DoRun; override;
   public
     constructor Create(TheOwner: TComponent); override;
@@ -41,16 +51,28 @@ type
     procedure SaveExclude;
     procedure SaveLangs;
     procedure SaveWords(ID : integer);
+    {$IFNDEF BIG_LANG}
     procedure SaveInclude(ID : integer; var Unique, Shared : TStringList);
+    {$ELSE}
+    function LanguageName(Value:RawByteString) : UnicodeString;
+    function DOSCodePages(Value:RawByteString) : UnicodeString;
+    procedure SaveInclude;
+    {$ENDIF}
     procedure ProcessFile(FileName:String);
+    function TestWord(W : UnicodeString) : boolean;
     procedure AddWord(const W : UnicodeString; ID : integer; Count : integer = 1);
+    procedure BinSort(var List : TStringList); overload;
+    procedure BinSort(var List : TStringList; First, Last : Integer); overload;
+    procedure OptiSort(var List : TStringList);
   end;
 
 { TMyApplication }
 
 procedure TMyApplication.DoRun;
 begin
+  {$IFNDEF BIG_LANG}
   if not DirectoryExists(LangPath) then CreateDir(LangPath);
+  {$ENDIF}
   if not DirectoryExists(WordPath) then CreateDir(WordPath);
   if (ParamCount =1) and (ParamStr(1) = '-p') then begin
     FLang:='';
@@ -73,6 +95,7 @@ begin
   StopOnException:=True;
   FUbar:=False;
   FNames:=[];
+  FModified:=[];
   FExclude:=TMapTree.Create;
   FWords:=TMapTree.Create;
 end;
@@ -101,6 +124,7 @@ var
   J : Integer;
 begin
   FLang:=ParamStr(1);
+  FEnglish:=LowerCase(ParamStr(1)) = 'english';
   LoadData;
   WriteLn('Language: ', FNames[FLangID]);
   for I := 2 to ParamCount do begin
@@ -144,7 +168,9 @@ begin
   FLangID:=-1;
   if ScanDir(WordPath + '*.dat', L) then begin
     SetLength(FNames, L.Count);
+    SetLength(FModified, L.Count);
     for I := 0 to L.Count - 1 do begin
+      FModified[I]:=False;
       FNames[I]:=ChangeFileExt(L[I], '');
       if Lowercase(FNames[I]) = Lowercase(FLang) then
         FLangID:=I;
@@ -200,6 +226,7 @@ var
 begin
   S := TStringList.Create;
   AddNodeText(FExclude.RootNode);
+  BinSort(S);
   S.SaveToFile(WordPath + 'exclude.lst', true);
   S.Free;
   WriteLn('saved: ', WordPath + 'exclude.lst');
@@ -208,22 +235,28 @@ end;
 procedure TMyApplication.SaveLangs;
 var
   I : integer;
+  {$IFNDEF BIG_LANG}
   S : TStringList;
+  {$ENDIF}
 begin
-  for I := 0 to Length(FNames) - 1 do begin
-    if FUbar or (FLangID=I) then SaveWords(I);
-  end;
+  for I := 0 to Length(FNames) - 1 do
+    if FModified[I] or (I=FLangID) then SaveWords(I);
+  {$IFNDEF BIG_LANG}
   S := TStringList.Create;
   for I := 0 to Length(FNames) - 1 do
     S.Add('{$I ' + LangPath + LowerCase(FNames[I]) + '.inc}');
   S.Sort;
-  if FUBar then S.SaveToFile(LangPath + 'languages.pp');
+  if FUbar then S.SaveToFile(LangPath + 'languages.pp');
   S.Free;
+  {$ELSE}
+  SaveInclude;
+  {$ENDIF BIG_LANG}
 end;
 
 procedure TMyApplication.SaveWords(ID: integer);
 var
-  Both, Unique, Shared : TStringList;
+  {$IFNDEF BIG_LANG} Unique, Shared, {$ENDIF}
+  Both : TStringList;
   D : RawByteString;
 
   procedure AddNodeText(Node:TMapNode);
@@ -239,10 +272,12 @@ var
       L:=PopDelim(C);
       if L = D then begin
         Both.Add(ZeroPad(StrToInt(C),10) + SPACE + Node.Key);
+        {$IFNDEF BIG_LANG}
         if Length(V) = 1 then
           Unique.Add(ZeroPad(StrToInt(C),10) + SPACE + Node.Key)
         else
           Shared.Add(ZeroPad(StrToInt(C),10) + SPACE + Node.Key);
+        {$ENDIF}
         Break;
       end;
     end;
@@ -253,17 +288,143 @@ var
 begin
   D := IntToStr(ID);
   Both := TStringList.Create;
+  {$IFNDEF BIG_LANG}
   Unique := TStringList.Create;
   Shared := TStringList.Create;
+  {$ENDIF}
   AddNodeText(FWords.RootNode);
+  OptiSort(Both);
   Both.SaveToFile(WordPath + FNames[ID] + '.dat', true);
+  {$IFNDEF BIG_LANG}
   if FUbar then SaveInclude(ID, Unique, Shared);
   Shared.Free;
   Unique.Free;
+  {$ENDIF}
   Both.Free;
   WriteLn('saved: ', FNames[ID]);
 end;
 
+function TMyApplication.LanguageName(Value: RawByteString): UnicodeString;
+begin
+  Value:=StringReplace(Value, HYPHEN, SPACE, [rfReplaceAll]);
+  case Value of
+    'Chinese Simplified'      : Value:='Chinese (Simplified)';
+    'Chinese Traditional'     : Value:='Chinese (Traditional)';
+    'Crimean Tartar Cyrillic' : Value:='Crimean Tartar (Cyrillic)';
+    'Crimean Tartar Latin'    : Value:='Crimean Tartar (Latin)';
+    'French Canadian'         : Value:='French (Canadian)';
+    'Inuktut Latin'           : Value:='Inuktut (Latin)';
+    'Inuktut Syllabics'       : Value:='Inuktut (Syllabics)';
+    'Kurdish Kurmanji'        : Value:='Kurdish (Kurmanji)';
+    'Kurdish Sorani'          : Value:='Kurdish (Sorani)';
+    'Malay Jawi'              : Value:='Malay (Jawi)';
+    'Meiteilon Manipuri'      : Value:='Meiteilon (Manipuri)';
+    'Myanmar Burmese'         : Value:='Myanmar (Burmese)';
+    'Nahuati Eastern Huasteca': Value:='Nahuati (Eastern Huasteca)';
+    'Ndebele South'           : Value:='Ndebele (South)';
+    'Nepalbhasa Newari'       : Value:='Nepalbhasa (Newari)';
+    'Odia Oriya'              : Value:='Odia (Oriya)';
+    'Portuguese Brazil'       : Value:='Portuguese (Brazil)';
+    'Portuguese Portugal'     : Value:='Portuguese (Portugal)';
+    'Punjabi Gurmukhi'        : Value:='Punjabi (Gurmukhi)';
+    'Punjabi Shahmukhi'       : Value:='Punjabi (Shahmukhi)';
+    'Qeqchi'                  : Value:='Q’eqchi’';
+    'Sami North'              : Value:='Sami (North)';
+    'Santali Latin'           : Value:='Santali (Latin)';
+    'Santali Ol Chiki'        : Value:='Santali (Ol Chiki)';
+    'Tamazight Tifinagh'      : Value:='Tamazight (Tifinagh)';
+  end;
+  LanguageName:=UnicodeString(Value);
+
+end;
+
+function TMyApplication.DOSCodePages(Value: RawByteString): UnicodeString;
+begin
+  Value:=StringReplace(Value, HYPHEN, SPACE, [rfReplaceAll]);
+  case Value of
+    'Arabic'                  : Value:='864,720';
+    'Chinese Simplified'      : Value:='936';
+    'Chinese Traditional'     : Value:='950';
+    'Corsican'                : Value:='-1,852'; // Not specified for DOS
+    'Croatian'                : Value:='852'; // Serbo-Croation
+    'Czech'                   : Value:='852';
+    'Danish'                  : Value:='865';
+    'Dutch'                   : Value:='850';
+    'English'                 : Value:='437';
+    'Esperanto'               : Value:='-1,850,858'; // Maybe
+    'Faroese'                 : Value:='850';
+    'French Canadian'         : Value:='863';
+    'French'                  : Value:='850,858';
+    'Georgian'                : Value:='60853,59829';
+    'German'                  : Value:='850,858';
+    'Greek'                   : Value:='737,869';
+    'Haitian Creole'          : Value:='850';
+    'Hawaiian'                : Value:='850';
+    'Hebrew'                  : Value:='1255,862'; // Partial 862
+    'Hindi'                   : Value:='1137';
+    'Irish'                   : Value:='850';
+    'Italian'                 : Value:='1252,850';
+    'Japanese'                : Value:='932';
+    'Korean'                  : Value:='949';
+    'Latin'                   : Value:='852';
+    'Mongolian'               : Value:='-1,866,852';  // Maybe 866, 852
+    'Norwegian'               : Value:='865,850';
+    'Polish'                  : Value:='852';
+    'Portuguese Brazil'       : Value:='860';
+    'Portuguese Portugal'     : Value:='860';
+    'Romanian'                : Value:='852';
+    'Russian'                 : Value:='866';
+    'Samoan'                  : Value:='850';
+    'Sanskrit'                : Value:='-1'; // No DOS Support
+    'Serbian'                 : Value:='852'; // Maybe 866
+    'Slovak'                  : Value:='852,895';
+    'Spanish'                 : Value:='220,850,858'; // 220 for Spanish and Catalan
+    'Sudanese'                : Value:='864'; // Partial 864
+    'Swahili'                 : Value:='850';
+    'Swedish'                 : Value:='865,850,1106';
+    'Thai'                    : Value:='874';
+    'Tibetan'                 : Value:='-1'; // No DOS Support
+    'Turkish'                 : Value:='857';
+    'Ukrainian'               : Value:='866';
+    'Venetian'                : Value:='850';
+    'Vietnamese'              : Value:='1258';
+    'Welsh'                   : Value:='850';
+    'Yiddish'                 : Value:='-1,862';   // Probably same as Hebrew
+  else
+    Value:='';
+  end;
+  DOSCodePages:=UnicodeString(Value);
+end;
+
+procedure TMyApplication.SaveInclude;
+var
+  S : UnicodeString;
+  I : Integer;
+
+begin
+  S:=
+  'type' + LF +
+  TAB + 'TLanguageInfo = record' + LF +
+  TAB2 + 'Caption : UnicodeString;' + LF +
+  TAB2 + 'CodePages : TIntegerArray;' + LF +
+  TAB + 'end;' + LF +
+  TAB + 'TLanguageInfoArray = array of TLanguageInfo;' + LF +
+  LF +
+  'const' + LF +
+  TAB + 'LanguageNames : TLanguageInfoArray = ( ' + LF;
+  for I := 0 to Length(FNames) - 1 do begin
+    S:=S + TAB2 + '(Caption:' +
+      RightPad(QUOTE + LanguageName(FNames[I]) + QUOTE + ';', 30) +
+      'CodePages:(' + DOSCodePages(FNames[I]) + '))';
+    if I < Length(FNames) - 1 then S:=S+COMMA;
+    S:=S+LF;
+  end;
+  S:=S+TAB+');'+LF;
+
+  SaveFile('language.pp', S);
+end;
+
+{$IFNDEF BIG_LANG}
 procedure TMyApplication.SaveInclude(ID: integer;var Unique, Shared : TStringList);
 var
   S : UnicodeString;
@@ -271,26 +432,36 @@ var
   procedure MakeArray(var List : TStringList; Name : UnicodeString);
   var
     W, L  : UnicodeString;
-    I : Integer;
+    I, C : Integer;
   begin
-    List.Sort;
-    S := S + '  ' +
-      UnicodeString(StringReplace(FNames[ID], '-', '', [rfReplaceAll])) +
-      Name + 'Words' + ' : TStringArray = ( // ' +
-      UnicodeString(IntToStr(List.Count)) + ' words' + LF;
-    L := '    ';
-    for I := List.Count - 1 downto 0 do begin
+    OptiSort(List);
+    for I := 0 to List.Count - 1 do begin
       W:=UnicodeString(List[I]);
       PopDelim(W);
+      List[I]:=RawByteString(W);
+    end;
+    {$IFDEF SAVE_SORTED}
+    List.Sort;
+    {$ENDIF}
+    S := S + '  ' +
+      UnicodeString(StringReplace(FNames[ID], '-', '', [rfReplaceAll])) +
+      Name + 'Words' + ' : TStringArray = ( ' + LF;
+    L := '    ';
+    C:=0;
+    for I := 0 to List.Count - 1 do begin
+      W:=UnicodeString(List[I]);
+      if Length(W) > DiscardOver then Continue;
+      Inc(C);
       W:=QUOTE + W + QUOTE;
       if Length(W) + Length(L) > 78 then begin
         S := S + TrimRight(L) + LF;
         L := '    ';
       end;
       L := L + W;
-      if I > 0 then L := L + ', '
+      if I < List.Count - 1 then L := L + ', '
     end;
-    S := S + TrimRight(L) + LF + '  );' + LF;
+    S := S + TrimRight(L) + LF + '  ); // ' +
+      UnicodeString(IntToStr(C)) + ' words' + LF;
   end;
 
 begin
@@ -300,6 +471,7 @@ begin
   MakeArray(Shared, 'Shared');
   SaveFile(LangPath + Lowercase(FNames[ID]) + '.inc', S);
 end;
+{$ENDIF}
 
 procedure TMyApplication.ProcessFile(FileName: String);
 var
@@ -316,9 +488,25 @@ begin
   P := 0;
   while P < L do begin
     W:=LowerCase(NextWord(S, P));
+    if not TestWord(W) then Continue;
     if FExclude.Find(W) = nil then
       AddWord(W, FLangID);
   end;
+end;
+
+function TMyApplication.TestWord(W: UnicodeString): boolean;
+var
+  R : RawByteString;
+  I : integer;
+begin
+  TestWord:=False;
+  if FEnglish then begin
+    if isUnicode(W) then Exit;
+    R:=RawByteString(W);
+    for I := 1 to Length(R) do
+      if (R[I] < 'a') or (R[I] > 'z') then Exit;
+  end;
+  TestWord:=True;
 end;
 
 procedure TMyApplication.AddWord(const W: UnicodeString; ID: integer;
@@ -357,11 +545,76 @@ begin
       V[Length(V)-1]:=IntToStr(ID) + SPACE + IntToStr(Count);
     end;
     if Length(V) > Threshold then begin
+      for I := 0 to Length(V) - 1 do
+        FModified[StrToInt(PopDelim(V[I]))]:=True;
       FWords.Delete(N);
       FExclude.Add(W);
     end else
       N.Value:=Implode(V);
   end;
+end;
+
+procedure TMyApplication.BinSort(var List: TStringList);
+begin
+  List.Sort;
+  BinSort(List, 0, List.Count - 1);
+end;
+
+procedure TMyApplication.BinSort(var List: TStringList; First, Last: Integer);
+var
+  X : TStringList;
+  I : Integer;
+
+  procedure SortRange(F, L : integer);
+  var
+    M : integer;
+  begin
+    M:=F + (L-F) div 2;
+    X.Add(List[M]);
+    if M < L then SortRange(M + 1, L);
+    if M > F then SortRange(F, M - 1);
+  end;
+
+begin
+  if First=Last then Exit;
+  // WriteLn(First, ':', Last, ' ', List[First], ' - ', List[Last]);
+  X := TStringList.Create;
+  SortRange(First, Last);
+  for I := 0 to X.Count - 1 do
+    List[First + I] := X[I];
+  X.Free;
+end;
+
+procedure TMyApplication.OptiSort(var List: TStringList);
+var
+  F, I : integer;
+  X, V : RawByteString;
+begin
+  if List.Count = 0 then Exit;
+  List.Sort;
+  for I := 0 to (List.Count - 1) div 2 do
+    Exchange(List, I, List.Count - I - 1);
+  F:=0;
+  I:=0;
+  while (I < List.Count) and (F < MaximumInc) do begin
+    Inc(F, Length(List[I]));
+    Inc(I);
+  end;
+  While I < List.Count do
+    List.Delete(I);
+  X:=List[0];
+  X:=PopDelim(X);
+  F:=0;
+  for I := 1 to List.Count - 1 do begin
+    V:=List[I];
+    V:=PopDelim(V);
+    if V <> X then begin
+      BinSort(List, F, I-1);
+      F:=I;
+      X:=V;
+    end;
+  end;
+  BinSort(List, F, List.Count - 1);
 end;
 
 var

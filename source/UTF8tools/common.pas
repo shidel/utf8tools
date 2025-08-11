@@ -48,6 +48,7 @@ const
   QUOTE       = #$27;
   QUOTEDOUBLE = #$22;
   HYPHEN      = #$2d;
+  COMMA       = #$2c;
 
   NOBREAKSPACE = #$0A;
   SOFTHYPHEN   = #$AD;
@@ -62,7 +63,9 @@ type
 
   TRawByteStringArray = array of RawByteString;
   TUnicodeArray = array of UnicodeString;
-  TIntArray = array of Integer;
+  TIntegerArray = array of Integer;
+  TInt64Array = array of Int64;
+  TBooleanArray = array of Boolean;
 
   TConvertOpts = set of (
     { All conversions from UTF-8 to/from ASCII }
@@ -135,6 +138,14 @@ type
   end;
 
 function Percent(A, B : integer) : Integer; overload;
+
+procedure Exchange(var A, B : RawByteString); overload;
+procedure Exchange(var A, B : UnicodeString); overload;
+procedure Exchange(var A, B : AnsiString); overload;
+procedure Exchange(var  List : TStringList; IndexA, IndexB : Integer); overload;
+procedure Exchange(var A, B : Int64); overload;
+procedure Exchange(var A, B : LongInt); overload;
+procedure Exchange(var A, B : QWORD); overload;
 
 function isUnicode(const AStr : UnicodeString) : boolean; overload;
 function isUnicode(const AStr : RawByteString) : boolean; overload;
@@ -367,6 +378,69 @@ begin
   Percent:=A * 100 div B;
   if (Percent = 100) and (A<>B) then Percent:=99;
   if (Percent = 0) and (A<>0) then Percent:=1;
+end;
+
+procedure Exchange(var A, B: RawByteString);
+var
+  T:RawByteString;
+begin
+  T:=A;
+  A:=B;
+  B:=T;
+end;
+
+procedure Exchange(var A, B: UnicodeString);
+var
+  T:UnicodeString;
+begin
+  T:=A;
+  A:=B;
+  B:=T;
+end;
+
+procedure Exchange(var A, B: AnsiString);
+var
+  T:AnsiString;
+begin
+  T:=A;
+  A:=B;
+  B:=T;
+end;
+
+procedure Exchange(var List: TStringList; IndexA, IndexB: Integer);
+var
+  T : AnsiString;
+begin
+  T:=List[IndexA];
+  List[IndexA]:=List[IndexB];
+  List.Strings[IndexB]:=T;
+end;
+
+procedure Exchange(var A, B: Int64);
+var
+  T:Int64;
+begin
+  T:=A;
+  A:=B;
+  B:=T;
+end;
+
+procedure Exchange(var A, B: LongInt);
+var
+  T:LongInt;
+begin
+  T:=A;
+  A:=B;
+  B:=T;
+end;
+
+procedure Exchange(var A, B: QWORD);
+var
+  T:QWORD;
+begin
+  T:=A;
+  A:=B;
+  B:=T;
 end;
 
 function isUnicode(const AStr: UnicodeString): boolean;
