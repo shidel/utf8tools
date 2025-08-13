@@ -18,10 +18,12 @@ const
   LangPath    = 'langs/';
   {$ENDIF}
   WordPath    = 'words/';
-  Threshold   = 5;
-  DiscardOver = 40;
-  MaximumInc  = 200000;
+  Threshold   : integer = 5;
+  DiscardOver : integer = 40;
+  MaximumInc  : integer = 500000; // 200000;
 
+  INDENT1 = SPACE2;
+  INDENT2 = SPACE4;
 
 type
 
@@ -55,8 +57,11 @@ type
     procedure SaveInclude(ID : integer; var Unique, Shared : TStringList);
     {$ELSE}
     function LanguageName(Value:RawByteString) : UnicodeString;
+    function LangConst(Value : integer) : UnicodeString; overload;
+    function LangConst(Value : RawByteString) : RawByteString; overload;
     function DOSCodePages(Value:RawByteString) : UnicodeString;
-    procedure SaveInclude;
+    procedure SaveLanguageInclude;
+    procedure SaveDictionaryInclude;
     {$ENDIF}
     procedure ProcessFile(FileName:String);
     function TestWord(W : UnicodeString) : boolean;
@@ -69,6 +74,8 @@ type
 { TMyApplication }
 
 procedure TMyApplication.DoRun;
+var
+  I : Integer;
 begin
   {$IFNDEF BIG_LANG}
   if not DirectoryExists(LangPath) then CreateDir(LangPath);
@@ -80,12 +87,20 @@ begin
     LoadData;
     SaveData;
   end else
+  if (ParamCount =1) and (ParamStr(1) = '-r') then begin
+    FLang:='';
+    FUbar:=True;
+    MaximumInc:=200000;
+    LoadData;
+    for I := 0 to Length(FModified) - 1 do
+      FModified[I]:=True;
+    SaveData;
+  end else
   if ParamCount < 2 then
     WriteHelp
   else
     Main;
 
-  // stop program loop
   Terminate;
 end;
 
@@ -228,8 +243,8 @@ begin
   AddNodeText(FExclude.RootNode);
   BinSort(S);
   S.SaveToFile(WordPath + 'exclude.lst', true);
-  S.Free;
   WriteLn('saved: ', WordPath + 'exclude.lst');
+  S.Free;
 end;
 
 procedure TMyApplication.SaveLangs;
@@ -249,7 +264,10 @@ begin
   if FUbar then S.SaveToFile(LangPath + 'languages.pp');
   S.Free;
   {$ELSE}
-  SaveInclude;
+  if FUbar then begin
+    SaveLanguageInclude;
+    SaveDictionaryInclude;
+  end;
   {$ENDIF BIG_LANG}
 end;
 
@@ -338,6 +356,21 @@ begin
 
 end;
 
+function TMyApplication.LangConst(Value: integer): UnicodeString;
+begin
+   LangConst:=UnicodeString('lng' +
+        StringReplace(RawByteString(FNames[Value]), HYPHEN, '', [rfReplaceAll]));
+end;
+
+function TMyApplication.LangConst(Value: RawByteString): RawByteString;
+var
+  N, E : Integer;
+begin
+  Val(Value,N,E);
+  if E <> 0 then raise Exception.Create('integer conversion error');
+  LangConst:=RawByteString(LangConst(N));
+end;
+
 function TMyApplication.DOSCodePages(Value: RawByteString): UnicodeString;
 begin
   Value:=StringReplace(Value, HYPHEN, SPACE, [rfReplaceAll]);
@@ -396,7 +429,7 @@ begin
   DOSCodePages:=UnicodeString(Value);
 end;
 
-procedure TMyApplication.SaveInclude;
+procedure TMyApplication.SaveLanguageInclude;
 var
   S : UnicodeString;
   I : Integer;
@@ -404,24 +437,83 @@ var
 begin
   S:=
   'type' + LF +
-  TAB + 'TLanguageInfo = record' + LF +
-  TAB2 + 'Caption : UnicodeString;' + LF +
-  TAB2 + 'CodePages : TIntegerArray;' + LF +
-  TAB + 'end;' + LF +
-  TAB + 'TLanguageInfoArray = array of TLanguageInfo;' + LF +
+  INDENT1 + 'TLanguageInfo = record' + LF +
+  INDENT2 + 'Caption : UnicodeString;' + LF +
+  INDENT2 + 'CodePages : TIntegerArray;' + LF +
+  INDENT1 + 'end;' + LF +
+  INDENT1 + 'TLanguageInfoArray = array of TLanguageInfo;' + LF +
   LF +
-  'const' + LF +
-  TAB + 'LanguageNames : TLanguageInfoArray = ( ' + LF;
+  'const' + LF;
+  for I := 0 to Length(FNames) - 1 do
+    S:=S+INDENT1 + RightPad(LangConst(I),30) +
+      '=' + SPACE + UnicodeString(IntToStr(I)) +';'+ LF;
+  S:=S+LF;
+  S:=S+ INDENT1 + 'LanguageNames : TLanguageInfoArray = ( ' + LF;
   for I := 0 to Length(FNames) - 1 do begin
-    S:=S + TAB2 + '(Caption:' +
+    S:=S + INDENT2 + '(Caption:' +
       RightPad(QUOTE + LanguageName(FNames[I]) + QUOTE + ';', 30) +
       'CodePages:(' + DOSCodePages(FNames[I]) + '))';
     if I < Length(FNames) - 1 then S:=S+COMMA;
     S:=S+LF;
   end;
-  S:=S+TAB+');'+LF;
-
+  S:=S+INDENT1+');'+LF;
   SaveFile('language.pp', S);
+  WriteLn('saved: ', 'language.pp');
+end;
+
+procedure TMyApplication.SaveDictionaryInclude;
+var
+  L : TStringList;
+  N, P : Integer;
+
+  procedure AddNodeText(Node:TMapNode);
+  var
+    U : UnicodeString;
+    S, K : String;
+    V : TStringArray;
+    I : integer;
+  begin
+    if not Assigned(Node) then Exit;
+    AddNodeText(Node.Lesser);
+    K:=Trim(Node.Key);
+    if (Length(K)>0) and (Length(K) <= DiscardOver) then begin
+      V:=Explode(Node.Value);
+      for I := 0 to Length(V) - 1 do begin
+        S:=V[I];
+        V[I]:=LangConst(PopDelim(S));
+      end;
+      S:=Implode(V);
+      U:=UnicodeString(K);
+      N:=FWords.Count;
+      N:=Percent(L.Count, N) div 10;
+      if N <> P then begin
+        L.Add('{$HINT Dictionary ' + IntToStr(N * 10) + '% compiled}');
+        P:=N;
+      end;
+      L.Add(INDENT2 + '(Caption:' + QUOTE + K + QUOTE + ';' + SPACE +
+        'Codepages:(' + S + ')),'
+        // + TAB + '// ' + IntToStr(Integer(U[1]))
+        );
+    end;
+    AddNodeText(Node.Greater);
+  end;
+
+begin
+  P:=0;
+  L := TStringList.Create;
+  L.Add('const' + LF + INDENT1 + 'DictionaryWords : TLanguageInfoArray = ( ');
+  AddNodeText(FWords.RootNode);
+  L[L.Count-1]:=Copy(L[L.Count-1], 1, Length(L[L.Count-1]) - 1);
+  L.Add(INDENT1 + ');' + LF);
+  L.Add('{$WARNING');
+  L.Add('This may take a very long time to assemble. Possible 30 to 60 minutes. ');
+  L.Add('Or even longer. ');
+  L.Add('You may think FPC has frozen. But, it just takes an extremely long time. ');
+  L.Add('Be patient. Go eat lunch or something. ');
+  L.Add('}');
+  L.SaveToFile('dictionary.pp', true);
+  L.Free;
+  WriteLn('saved: ', 'dictionary.pp');
 end;
 
 {$IFNDEF BIG_LANG}
@@ -443,10 +535,10 @@ var
     {$IFDEF SAVE_SORTED}
     List.Sort;
     {$ENDIF}
-    S := S + '  ' +
+    S := S + INDNET1 +
       UnicodeString(StringReplace(FNames[ID], '-', '', [rfReplaceAll])) +
       Name + 'Words' + ' : TStringArray = ( ' + LF;
-    L := '    ';
+    L := INDENT2;
     C:=0;
     for I := 0 to List.Count - 1 do begin
       W:=UnicodeString(List[I]);
@@ -455,12 +547,12 @@ var
       W:=QUOTE + W + QUOTE;
       if Length(W) + Length(L) > 78 then begin
         S := S + TrimRight(L) + LF;
-        L := '    ';
+        L := INDENT2;
       end;
       L := L + W;
       if I < List.Count - 1 then L := L + ', '
     end;
-    S := S + TrimRight(L) + LF + '  ); // ' +
+    S := S + TrimRight(L) + LF + INDENT1 + '); // ' +
       UnicodeString(IntToStr(C)) + ' words' + LF;
   end;
 
@@ -480,14 +572,15 @@ var
   W : UnicodeString;
 begin
   if not LoadFile(FileName, S) then begin
-    WriteLn(TAB, 'error loading file: ', FileName);
+    WriteLn(INDENT1, 'error loading file: ', FileName);
     Exit;
   end;
-  WriteLn(TAB, 'processing: ', FileName);
+  WriteLn(INDENT1, 'processing: ', FileName);
   L := Length(S);
   P := 0;
   while P < L do begin
     W:=LowerCase(NextWord(S, P));
+    if Length(W) < 2 then Continue;
     if not TestWord(W) then Continue;
     if FExclude.Find(W) = nil then
       AddWord(W, FLangID);
@@ -556,6 +649,7 @@ end;
 
 procedure TMyApplication.BinSort(var List: TStringList);
 begin
+  if List.Count = 0 then Exit;
   List.Sort;
   BinSort(List, 0, List.Count - 1);
 end;

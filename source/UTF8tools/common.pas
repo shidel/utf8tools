@@ -55,9 +55,15 @@ const
 
   TAB2        = TAB + TAB;
 
+  SPACE2      = SPACE  + SPACE;
+  SPACE4      = SPACE2 + SPACE2;
+  SPACE6      = SPACE4 + SPACE2;
+  SPACE8      = SPACE4 + SPACE4;
+
   SUFFIXDELIM = PERIOD; { UNDERSCORE; HYPHEN; }
 
   MaxInteger  = MaxLongInt;
+  MaxInt64    = $7fffffffffffffff;
 
 type
 
@@ -118,11 +124,13 @@ type
 
   TMapTree = class(TMapData)
   private
+    FCount: int64;
     FRootNode: TMapNode;
   protected
     procedure Attach(var Node : TMapNode);
     procedure Dettach(var Node : TMapNode);
   public
+    property Count : int64 read FCount;
     property RootNode : TMapNode read FRootNode;
     function Add(Key :RawByteString; Value : RawByteString='') : TMapNode; overload;
     function Find(Key : RawByteString) : TMapNode; overload;
@@ -137,7 +145,7 @@ type
   published
   end;
 
-function Percent(A, B : integer) : Integer; overload;
+function Percent(Value, Total : integer) : Integer; overload;
 
 procedure Exchange(var A, B : RawByteString); overload;
 procedure Exchange(var A, B : UnicodeString); overload;
@@ -150,21 +158,22 @@ procedure Exchange(var A, B : QWORD); overload;
 function isUnicode(const AStr : UnicodeString) : boolean; overload;
 function isUnicode(const AStr : RawByteString) : boolean; overload;
 
-function PopDelim(var AStr : RawByteString; ADelim: RawByteString = #32): RawByteString; overload;
-function PopDelim(var AStr : UnicodeString; ADelim: UnicodeString = #32): UnicodeString; overload;
+function PopDelim(var AStr : AnsiString; ADelim: AnsiString = SPACE): AnsiString; overload;
+function PopDelim(var AStr : RawByteString; ADelim: RawByteString = SPACE): RawByteString; overload;
+function PopDelim(var AStr : UnicodeString; ADelim: UnicodeString = SPACE): UnicodeString; overload;
 
 function NextWord(const AStr : UnicodeString; var P : integer) : UnicodeString;
 function NextWord(const AStr : RawByteString; var P : integer) : RawByteString;
 
 procedure Explode(AStr : RawByteString; var AStrs : TStringList; ADelim : RawByteString = ','); overload;
 procedure Explode(AStr : UnicodeString; var AStrs : TStringList; ADelim : UnicodeString = ','); overload;
-function Explode(AStr : RawByteString; ADelim : RawByteString = ',' ):TRawByteStringArray; overload;
-function Explode(AStr : UnicodeString; ADelim : UnicodeString = ',' ):TUnicodeArray; overload;
+function Explode(AStr : RawByteString; ADelim : RawByteString = ','):TRawByteStringArray; overload;
+function Explode(AStr : UnicodeString; ADelim : UnicodeString = ','):TUnicodeArray; overload;
 
 procedure Implode(AStrs : TStringList; out AStr : RawByteString; ADelim : RawByteString = ','); overload;
 procedure Implode(AStrs : TStringList; out AStr : UnicodeString; ADelim : UnicodeString = ','); overload;
-function Implode(AStrs : TRawByteStringArray; ADelim : RawByteString = ',' ):RawByteString; overload;
-function Implode(AStrs : TUnicodeArray; ADelim : UnicodeString = ',' ):UnicodeString; overload;
+function Implode(AStrs : TRawByteStringArray; ADelim : RawByteString = ','):RawByteString; overload;
+function Implode(AStrs : TUnicodeArray; ADelim : UnicodeString = ','):UnicodeString; overload;
 
 function RightPad(Str : RawByteString; W : integer; Padding : RawByteString = SPACE; Clip : boolean = false) : RawByteString;
 function RightPad(Str : UnicodeString; W : integer; Padding : UnicodeString = SPACE; Clip : boolean = false) : UnicodeString;
@@ -202,8 +211,8 @@ implementation
 const
   WordBreakChars : UnicodeString =
     SPACE + CR + LF + TAB + QUOTE + VTAB + FORMFEED +
-    '01234567890' +  '`!@#$%^&*()_+{}:"<>?`-=[]\;,./|~' +
-    '！¡¿’«»，،、（）。“։ ”：「」—፣一™；؛·„…';
+    '01234567890' +  '`!@#$%^&*()_+{}:"<>?`-=[]\;,./|~';
+    // '！¡¿’«»，،、（）。“։ ”：「」—፣一™；؛·„… ﴾﴿';
 
 { TMapNode }
 
@@ -292,9 +301,9 @@ begin
   Node := TMapNode.Create;
   Node.FKey := Key;
   Node.FValue := Value;
-
   Attach(Node);
   Add:=Node;
+  Inc(FCount);
 end;
 
 function TMapTree.Find(Key: RawByteString): TMapNode;
@@ -348,12 +357,14 @@ end;
 procedure TMapTree.Delete(var Node: TMapNode);
 begin
   if Not Assigned(Node) then Exit;
+  Dec(FCount);
   Dettach(Node);
   FreeAndNil(Node);
 end;
 
 procedure TMapTree.Clear;
 begin
+  FCount:=0;
   if Assigned(FRootNode) then FreeAndNil(FRootNode);
 end;
 
@@ -361,6 +372,7 @@ constructor TMapTree.Create;
 begin
   inherited Create;
   FRootNode := nil;
+  FCount:=0;
 end;
 
 destructor TMapTree.Destroy;
@@ -371,13 +383,13 @@ end;
 
 { Unit functions and procedures }
 
-function Percent(A, B: integer): Integer;
+function Percent(Value, Total: integer): Integer;
 begin
   Percent:=0;
-  if B = 0 then Exit;
-  Percent:=A * 100 div B;
-  if (Percent = 100) and (A<>B) then Percent:=99;
-  if (Percent = 0) and (A<>0) then Percent:=1;
+  if Total = 0 then Exit;
+  Percent:=Value * 100 div Total;
+  if (Percent = 100) and (Value<>Total) then Percent:=99;
+  if (Percent = 0) and (Value<>0) then Percent:=1;
 end;
 
 procedure Exchange(var A, B: RawByteString);
@@ -451,6 +463,16 @@ end;
 function isUnicode(const AStr: RawByteString): boolean;
 begin
   isUnicode:=Length(AStr) <> Length(UnicodeString(AStr));
+end;
+
+function PopDelim(var AStr: AnsiString; ADelim: AnsiString): AnsiString;
+var
+  P : integer;
+begin
+  P := Pos(ADelim, AStr);
+  if P <= 0 then P := Length(AStr) + 1;
+  Result := Copy(AStr, 1, P - 1);
+  Delete(AStr, 1, P - 1 + Length(ADelim));
 end;
 
 function PopDelim(var AStr: RawByteString; ADelim: RawByteString): RawByteString;
@@ -818,4 +840,33 @@ begin
 end;
 
 
+procedure AppendBreakChars(C : TIntegerArray);
+var
+   I : Integer;
+   S : UnicodeString;
+begin
+  for I:=0 to Length(C) - 1 do begin
+    S:=SPACE4;
+    Word(S[1]):=C[I];
+    WordBreakChars:=WordBreakChars+Trim(S);
+  end;
+end;
+
+procedure ShowBreakChars;
+var
+   I : integer;
+begin
+//  WordBreakChars:=WordBreakChars+'•';
+  for I := 1 to Length(WordBreakChars) do
+    WriteLn(WordBreakChars[I], ', ', Integer(WordBreakChars[I]));
+  Halt(1);
+end;
+
+initialization
+  AppendBreakChars([65281, 161, 191, 8217, 171, 187, 65292, 1548, 12289]);
+  AppendBreakChars([65288, 65289, 12290, 8220, 1417, 32, 8221, 65306, 12300]);
+  AppendBreakChars([12301, 8212, 4963, 19968, 8482, 65307, 1563, 183, 8222]);
+  AppendBreakChars([8230, 32, 64830, 64831, 8203, 65279, 8213, 8266]);
+  AppendBreakChars([160, 173, 8199, 8200, 8201, 8202, 8204, 65531, 61533]);
+  AppendBreakChars([8206,8207,8234,8235,8236,8237,8238,8239,8291,12288,65529]);
 end.

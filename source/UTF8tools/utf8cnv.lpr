@@ -43,6 +43,11 @@ type
     destructor Destroy; override;
     procedure WriteBanner; virtual;
     procedure WriteHelp; virtual;
+    procedure MakeFilelist; virtual;
+    procedure ProcessFiles; virtual;
+    procedure NotSupported(Filename: String);
+    procedure FileText(Filename: String); virtual;
+    procedure FileHTML(Filename: String); virtual;
   end;
 
 { TUTF8Convert }
@@ -120,8 +125,8 @@ begin
     FOptions:=FOptions + [cvCtrlChars];
   if FHTMLCodes then
     FOptions:=FOptions + [cvHTMLCodes];
-  // if not Terminated then MakeFileList;
-  // if not Terminated then ProcessFiles;
+  if not Terminated then MakeFileList;
+  if not Terminated then ProcessFiles;
   Terminate;
 end;
 
@@ -173,6 +178,117 @@ begin
   WriteLn('Available code pages: ' {,  Codepages });
 //  WriteLn(Length(DetectableLanguages), ' known languages.');
   Terminate;
+end;
+
+procedure TUTF8Convert.MakeFilelist;
+var
+  L : TStringList;
+  S : TSearchRec;
+  P : String;
+  I, E : integer;
+begin
+  if (FFiles.Count = 0) then begin
+     WriteLn('no files specified');
+     Terminate(1);
+     Exit;
+   end;
+  L :=TStringList.Create;
+  L.Assign(FFiles);
+  FFiles.Clear;
+  FFiles.Sorted:=True;
+  FFiles.Duplicates:=dupIgnore;
+  for I := 0 to L.Count - 1 do begin
+    P := ExtractFilePath(L[I]);
+    E := FindFirst(L[I], faAnyFile, S);
+    if E <> 0 then begin
+      WriteLn('file not found: ', L[I]);
+      Terminate(1);
+      { Break; }
+    end else while E = 0 do begin
+      FFiles.Add(P + S.Name);
+      E :=FindNext(S);
+    end;
+    FindClose(S);
+  end;
+  L.Free;
+end;
+
+procedure TUTF8Convert.ProcessFiles;
+var
+  I : integer;
+begin
+  for I := 0 to FFiles.Count - 1 do begin
+    case LowerCase(ExtractFileExt(FFiles[I])) of
+      '.bmp', '.jpg', '.jpeg', '.jp2', '.gif', '.png', '.tiff',
+      '.wav', '.mp3', '.aac', '.voc', '.cda', '.avi', '.mp2', '.mp4',
+      '.mov', '.qt', '.ac3', '.aa', '.flac', '.img', '.iso', '.xz',
+      '.zip', '.bzip', '.bz2', '.gzip', '.gz', '.tar', '.tgz', '.tbz'
+      : begin
+        WriteLn('Ignore: ', FFiles[I]);
+        Continue;
+      end
+    else
+      WriteLn('Processing: ', FFiles[I]);
+    end;
+    case LowerCase(ExtractFileExt(FFiles[I])) of
+      '.xml', '.xhtm', '.xhtml' : begin
+        NotSupported(FFiles[I]);
+        if FForced then begin
+          if FHTMLasText then
+            FileText(FFiles[I])
+          else
+            FileHTML(FFiles[I]);
+        end;
+      end;
+      '.css' : begin
+        NotSupported(FFiles[I]);
+        if FForced then FileText(FFiles[I]);
+      end;
+      '.html', '.htm' : begin
+        if FHTMLasText then
+          FileText(FFiles[I])
+        else
+          FileHTML(FFiles[I]);
+      end;
+    else
+      FileText(FFiles[I]);
+    end;
+    if Terminated then Break;
+  end;
+end;
+
+procedure TUTF8Convert.NotSupported(Filename: String);
+begin
+  WriteLn(TAB, 'File type "', UpperCase(Copy(ExtractFileExt(Filename),1)),
+  '" are not supported.');
+end;
+
+procedure TUTF8Convert.FileText(Filename: String);
+var
+  U : UnicodeString;
+  W, I, C : Integer;
+  R : TLanguageResults;
+begin
+  if not LoadFile(FileName, U) then begin
+    WriteLn(TAB, 'error loading: ', FileName);
+    Exit;
+  end;
+  C:=LanguageDetect(U, R, W);
+  WriteLn('Words Known: ', Percent(W, C), '% (', W, ' of ', C, ')');
+  if Length(R) = 0 then
+    WriteLn(TAB, 'unable to determine language')
+  else begin
+    for I := 0 to Length(R) - 1 do begin
+       WriteLn(TAB, LanguageNames[R[I].ID].Caption, SPACE, Percent(R[I].Matched, W), '%,',
+       SPACE, R[I].Matched, ' word(s) matched, ', R[I].Points, ' point(s)');
+    end;
+  end;
+
+end;
+
+procedure TUTF8Convert.FileHTML(Filename: String);
+begin
+
 end;
 
 

@@ -79,11 +79,8 @@ function lines () {
 	echo
 }
 
+# build_app utf8lwdb
 build_app utf8cnv
-build_app utf2html
-build_app html2utf
-build_app utf2cp
-build_app cp2utf
 
 lines
 
